@@ -1,0 +1,106 @@
+/* Shell, sidebar, toolbar, grid and masonry.
+   Structure comes from surface layering, radius and spacing rather than rules
+   drawn between regions. */
+
+:root {
+  color-scheme: dark;
+
+  --bg: #131417;
+  --surface: #1b1d21;
+  --surface-2: #23262b;
+  --surface-3: #2c3037;
+  --surface-4: #363b44;
+  --line: rgba(255, 255, 255, 0.07);
+
+  --text: #e9ebf0;
+  --text-soft: #b6bcc8;
+  --muted: #868e9d;
+
+  --accent: #ffc93c;
+  --accent-ink: #221c05;
+  --accent-soft: rgba(255, 201, 60, 0.14);
+
+  --ok: #4dd18a;
+  --warn: #f0a24b;
+  --danger: #ef6f6c;
+
+  --tone-model: #7aa2ff;
+  --tone-lora: #b98bff;
+  --tone-sampler: #4ecdc4;
+  --tone-extra: #f0a24b;
+  --tone-muted: #7d8494;
+
+  --radius-lg: 16px;
+  --radius: 12px;
+  --radius-sm: 8px;
+
+  --shadow-soft: 0 12px 32px rgba(0, 0, 0, 0.42);
+  --shadow-card: 0 2px 10px rgba(0, 0, 0, 0.3);
+
+  --sidebar-w: 216px;
+  --detail-w: clamp(340px, 28vw, 440px);
+  --topbar-h: 58px;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+    --bg: #eef0f4;
+    --surface: #ffffff;
+    --surface-2: #f2f4f7;
+    --surface-3: #e6e9ee;
+    --surface-4: #d9dde4;
+    --line: rgba(16, 20, 30, 0.08);
+    --text: #1a1d23;
+    --text-soft: #454b57;
+    --muted: #6b7382;
+    --accent: #a97400;
+    --accent-ink: #fff8e6;
+    --accent-soft: rgba(169, 116, 0, 0.14);
+    --tone-model: #3f6fd8;
+    --tone-lora: #8b5cf6;
+    --tone-sampler: #12897f;
+    --tone-extra: #b56a17;
+    --tone-muted: #5f6675;
+    --shadow-soft: 0 14px 30px rgba(16, 20, 30, 0.14);
+    --shadow-card: 0 1px 4px rgba(16, 20, 30, 0.1);
+  }
+}
+
+* { box-sizing: border-box; }
+
+/* Component display rules (inline-flex on buttons, for one) outrank the UA
+   [hidden] rule, so hide explicitly. */
+[hidden] { display: none !important; }
+
+html, body { margin: 0; height: 100%; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Inter", "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* The wrapper is a fixed 16px box while several buttons draw a 13–14px glyph;
+   centring inside the box keeps every icon optically centred in its control. */
+.icon {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+}
+
+.icon svg { display: block; }

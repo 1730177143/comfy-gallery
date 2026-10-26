@@ -1,0 +1,320 @@
+/* ---------- grid area ---------- */
+
+.grid-area {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 14px 16px 40px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  outline: none;
+}
+
+.grid[data-layout="grid"] {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.grid[data-layout="masonry"] {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.masonry-col {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.masonry-col .card { margin-bottom: 0; width: 100%; }
+
+/* ---------- card ---------- */
+
+.card {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  margin: 0 0 10px;
+  background: var(--surface-2);
+  border: none;
+  border-radius: var(--radius);
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
+  transition: transform 140ms ease, box-shadow 140ms ease;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.grid[data-layout="grid"] .card { margin-bottom: 0; }
+
+.card:hover { transform: translateY(-2px); box-shadow: var(--shadow-soft); z-index: 2; }
+
+.card[aria-selected="true"] { box-shadow: 0 0 0 2px var(--accent), var(--shadow-soft); }
+
+.card-media { position: relative; display: block; width: 100%; background: var(--surface-3); }
+
+.grid[data-layout="grid"] .card-media { aspect-ratio: 1 / 1; }
+
+.card-thumb {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+/* Aspect comes from the item itself, so nothing reflows when the image lands. */
+.grid[data-layout="masonry"] .card-media { aspect-ratio: var(--ar, 3 / 4); }
+
+.card-thumb[data-loaded="true"] { opacity: 1; }
+
+.card-fallback {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1;
+  color: var(--muted);
+  background: var(--surface-3);
+  font-size: 22px;
+}
+
+.card-badge {
+  position: absolute;
+  top: 7px;
+  left: 7px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: var(--badge-tone, var(--text));
+  background: color-mix(in oklab, var(--badge-tone, #000) 26%, rgba(10, 12, 16, 0.72));
+  border-radius: 6px;
+  backdrop-filter: blur(5px);
+}
+
+.card-badge[data-base=""] { display: none; }
+
+.card-warn {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #ffd9a8;
+  background: rgba(10, 12, 16, 0.62);
+  border-radius: 6px;
+  backdrop-filter: blur(5px);
+}
+
+/* Kept visible: a card's actions should not depend on discovering a hover. */
+.card-actions {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  display: flex;
+  gap: 3px;
+  opacity: 0.85;
+  transition: opacity 130ms ease;
+}
+
+.card:hover .card-actions,
+.card:focus-within .card-actions { opacity: 1; }
+
+.card-act {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: #eef1f7;
+  background: rgba(10, 12, 16, 0.6);
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+  backdrop-filter: blur(5px);
+  transition: background 110ms ease, color 110ms ease;
+}
+
+.card-act:hover { background: rgba(10, 12, 16, 0.85); }
+
+/* Starred: the outline becomes a solid star, so the state reads at a glance. */
+.card-act[aria-pressed="true"] { color: var(--accent); }
+.card-act[aria-pressed="true"] svg path { fill: currentColor; }
+
+/* Hover mirrors the delete button: same lift, the action's own colour instead. */
+.card-act:not(.card-act-danger):hover {
+  color: var(--accent-ink);
+  background: var(--accent);
+}
+
+.card-act:not(.card-act-danger)[aria-pressed="true"]:hover {
+  background: color-mix(in oklab, var(--accent) 86%, white);
+}
+
+.card-act svg { width: 13px; height: 13px; }
+
+.card-info {
+  position: absolute;
+  inset: auto 0 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 22px 8px 6px;
+  background: linear-gradient(180deg, transparent 0%, rgba(8, 9, 12, 0.55) 45%, rgba(8, 9, 12, 0.88) 100%);
+  pointer-events: none;
+}
+
+.grid[data-layout="masonry"] .card-info {
+  padding: 34px 9px 8px;
+  background: linear-gradient(180deg, transparent 0%, rgba(8, 9, 12, 0.5) 42%, rgba(8, 9, 12, 0.9) 100%);
+}
+
+.card-name {
+  font-size: 11px;
+  color: #dfe4ee;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* The waterfall card leads with the prompt, as LoRA Manager's recipe cards do;
+   the file name stays available through the tooltip and the detail panel. */
+.grid[data-layout="masonry"] .card-name { display: none; }
+
+/* Square tiles are small; a prompt preview there would cover more image than it
+   is worth, so it only appears in the waterfall layout. */
+.grid[data-layout="grid"] .card-snippet { display: none; }
+
+.card-snippet {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  overflow: hidden;
+  font-size: 10px;
+  line-height: 1.35;
+  color: rgba(226, 231, 240, 0.82);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.grid[data-layout="masonry"] .card-snippet {
+  -webkit-line-clamp: 2;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: #eff3f9;
+}
+
+.card-meta {
+  display: flex;
+  gap: 6px;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(210, 218, 232, 0.72);
+}
+
+.grid[data-layout="masonry"] .card-meta { color: var(--muted); }
+
+/* ---------- status blocks ---------- */
+
+.grid-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 22px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--surface-3);
+  border-top-color: var(--accent);
+  animation: spin 700ms linear infinite;
+}
+
+.grid-sentinel { height: 1px; }
+
+.empty {
+  display: grid;
+  place-content: center;
+  gap: 6px;
+  min-height: 45vh;
+  text-align: center;
+}
+
+.empty-title { margin: 0; font-size: 14px; font-weight: 600; }
+.empty-body { margin: 0; font-size: 12.5px; color: var(--muted); }
+
+/* Explicit tiles-per-row, set from the settings dialog. */
+.grid[data-layout="grid"][data-cols] {
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+}
+
+/* ---------- selection + pending ---------- */
+
+.card-actions { gap: 2px; }
+
+.card-act-danger:hover { color: #fff; background: color-mix(in oklab, var(--danger) 82%, black); }
+
+.grid[data-select="true"] .card { cursor: copy; }
+
+.card[data-picked="true"] {
+  box-shadow: 0 0 0 2px var(--accent), var(--shadow-soft);
+}
+
+.card[data-picked="true"]::after {
+  content: "✓";
+  position: absolute;
+  /* Below the base-model badge: both live in the top-left corner. */
+  top: 30px;
+  left: 6px;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-radius: 7px;
+}
+
+/* A queued deletion dims the card and counts down in the corner. */
+.card[data-pending="true"] { opacity: 0.55; }
+
+.card-pending {
+  position: absolute;
+  left: 7px;
+  bottom: 34px;
+  z-index: 4;
+  padding: 1px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  background: color-mix(in oklab, var(--danger) 88%, black);
+  border-radius: 999px;
+}
+
+.card-pending[hidden] { display: none; }
+
+/* An unrecognised family is drawn as an outline chip: it is information, not a
+   family identity, and it is the one state the user can correct by hand. */
+.card-badge[data-base="unknown"] {
+  color: var(--text-soft);
+  background: rgba(10, 12, 16, 0.58);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--muted) 60%, transparent);
+}

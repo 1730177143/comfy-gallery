@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gallery</title>
+<link rel="stylesheet" href="/gallery/assets/css/tokens.css">
+<link rel="stylesheet" href="/gallery/assets/css/shell.css">
+<link rel="stylesheet" href="/gallery/assets/css/grid.css">
+<link rel="stylesheet" href="/gallery/assets/css/ui.css">
+<link rel="stylesheet" href="/gallery/assets/css/detail.css">
+</head>
+<body>
+<div class="app" id="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-head">
+      <span class="sidebar-title" data-i18n="sidebar.roots">Roots</span>
+      <button id="sidebar-toggle" class="icon-btn" type="button"
+              data-i18n-attr="title:sidebar.collapse;aria-label:sidebar.collapse">
+        <span class="icon" id="sidebar-icon" aria-hidden="true"></span>
+      </button>
+    </div>
+
+    <nav class="nav" id="folder-nav" aria-label="Folders"></nav>
+
+    <div class="sidebar-section">
+      <span class="sidebar-title" data-i18n="sidebar.bases">Base model</span>
+      <div class="base-list" id="base-list"></div>
+    </div>
+
+    <div class="sidebar-foot">
+      <button id="settings-btn" class="btn" type="button">
+        <span class="icon" id="settings-icon" aria-hidden="true"></span>
+        <span data-i18n="sidebar.settings">Settings</span>
+      </button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <h1>Gallery</h1>
+        <span class="count" id="count-label">—</span>
+      </div>
+
+      <div class="tools">
+        <div class="search">
+          <span class="search-icon" id="search-icon" aria-hidden="true"></span>
+          <input id="search-input" type="search" autocomplete="off" spellcheck="false"
+                 aria-label="Search" data-i18n-attr="placeholder:search.placeholder;aria-label:search.label">
+          <button id="search-clear" class="search-clear" type="button" hidden
+                  data-i18n-attr="aria-label:search.clear"><span aria-hidden="true">×</span></button>
+        </div>
+
+        <label class="select-wrap">
+          <select id="sort-select" data-i18n-attr="aria-label:sort.label" aria-label="Sort">
+            <option value="newest" data-i18n="sort.newest">Newest first</option>
+            <option value="oldest" data-i18n="sort.oldest">Oldest first</option>
+            <option value="name" data-i18n="sort.name">Name</option>
+            <option value="largest" data-i18n="sort.largest">Largest</option>
+          </select>
+        </label>
+
+        <div class="segmented" id="layout-toggle" role="group" data-i18n-attr="aria-label:layout.label">
+          <button type="button" data-layout="grid" class="seg" data-i18n-attr="title:layout.grid;aria-label:layout.grid">
+            <span class="seg-icon seg-grid" aria-hidden="true"></span>
+          </button>
+          <button type="button" data-layout="masonry" class="seg" data-i18n-attr="title:layout.masonry;aria-label:layout.masonry">
+            <span class="seg-icon seg-masonry" aria-hidden="true"></span>
+          </button>
+        </div>
+
+        <div class="segmented" id="detail-toggle" role="group" data-i18n-attr="aria-label:detail.label">
+          <button type="button" data-detail-mode="side" class="seg" data-i18n-attr="title:detail.side;aria-label:detail.side">
+            <span class="seg-icon seg-side" aria-hidden="true"></span>
+          </button>
+          <button type="button" data-detail-mode="modal" class="seg" data-i18n-attr="title:detail.modal;aria-label:detail.modal">
+            <span class="seg-icon seg-modal" aria-hidden="true"></span>
+          </button>
+          <button type="button" data-detail-mode="image" class="seg" data-i18n-attr="title:detail.image;aria-label:detail.image">
+            <span class="seg-icon seg-image" aria-hidden="true"></span>
+          </button>
+        </div>
+
+        <button id="select-toggle" class="icon-btn toggle-btn" type="button" aria-pressed="false"
+                data-i18n-attr="title:select.enter;aria-label:select.enter">
+          <span class="icon" id="select-icon" aria-hidden="true"></span>
+        </button>
+
+        <button id="undo-button" class="icon-btn undo-btn" type="button"
+                data-i18n-attr="title:undo.button;aria-label:undo.button">
+          <span class="icon" id="undo-icon" aria-hidden="true"></span>
+          <span class="undo-count" id="undo-count" hidden>0</span>
+        </button>
+
+        <button id="refresh-btn" class="icon-btn" type="button"
+                data-i18n-attr="title:action.refresh;aria-label:action.refresh">
+          <span class="icon" id="refresh-icon" aria-hidden="true"></span>
+        </button>
+      </div>
+    </header>
+
+    <section class="grid-area" id="grid-area" tabindex="-1">
+      <div class="selectbar" id="selectbar" hidden>
+        <span class="selectbar-count" id="selectbar-count"></span>
+        <button class="btn" id="select-all" type="button" data-i18n="select.all">Select all</button>
+        <button class="btn" id="select-none" type="button" data-i18n="select.none">Clear</button>
+        <button class="btn" id="select-favorite" type="button" data-i18n="select.favorite">Favorite</button>
+        <button class="btn" id="select-delete" type="button" data-variant="danger" data-i18n="select.delete">Delete</button>
+        <button class="btn" id="select-exit" type="button" data-i18n="select.exit">Stop selecting</button>
+      </div>
+      <div class="grid" id="grid" data-layout="grid"></div>
+      <div class="grid-status" id="grid-status" hidden></div>
+      <div class="grid-sentinel" id="sentinel"></div>
+      <div class="empty" id="empty" hidden>
+        <p class="empty-title" id="empty-title">Nothing here yet</p>
+        <p class="empty-body" id="empty-body">Generate an image in ComfyUI, then press refresh.</p>
+      </div>
+    </section>
+  </main>
+
+  <aside class="detail" id="detail" aria-live="polite"></aside>
+</div>
+
+<dialog class="dialog" id="settings-dialog">
+  <form method="dialog" class="dialog-form">
+    <header class="dialog-head">
+      <h2 data-i18n="settings.title">Settings</h2>
+      <button class="icon-btn" value="close" type="submit"
+              data-i18n-attr="aria-label:action.close"><span aria-hidden="true">×</span></button>
+    </header>
+
+    <div class="dialog-body">
+      <section class="setting">
+        <span class="setting-label" data-i18n="settings.layout">Default layout</span>
+        <div class="segmented" id="layout-toggle-dialog" role="group">
+          <button type="button" data-layout="grid" class="seg">
+            <span class="seg-icon seg-grid" aria-hidden="true"></span>
+            <span class="seg-text" data-i18n="layout.grid">Grid</span>
+          </button>
+          <button type="button" data-layout="masonry" class="seg">
+            <span class="seg-icon seg-masonry" aria-hidden="true"></span>
+            <span class="seg-text" data-i18n="layout.masonry">Waterfall</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="setting">
+        <span class="setting-label" data-i18n="settings.roots">Extra folders</span>
+        <p class="setting-help" data-i18n="settings.rootsHelp"></p>
+        <div class="root-list" id="root-list"></div>
+        <div class="root-add">
+          <input id="root-input" type="text" spellcheck="false"
+                 data-i18n-attr="placeholder:settings.rootsPlaceholder">
+          <button id="root-add-btn" class="btn" type="button" data-i18n="settings.add">Add folder</button>
+        </div>
+      </section>
+
+      <section class="setting setting-row">
+        <label class="switch">
+          <input type="checkbox" id="include-video">
+          <span class="switch-track" aria-hidden="true"></span>
+          <span class="setting-label" data-i18n="settings.video">Include video files</span>
+        </label>
+      </section>
+
+      <section class="setting setting-row">
+        <label class="switch">
+          <input type="checkbox" id="wheel-nav">
+          <span class="switch-track" aria-hidden="true"></span>
+          <span class="setting-label" data-i18n="settings.wheel">Wheel switches images</span>
+        </label>
+      </section>
+
+      <section class="setting setting-row">
+        <span class="setting-label" data-i18n="settings.pageSize">Items per page</span>
+        <input type="number" id="page-size" min="20" max="200" step="10" class="num-input">
+      </section>
+
+      <section class="setting setting-row">
+        <span class="setting-label" data-i18n="settings.columns">Items per row</span>
+        <input type="number" id="columns-input" min="0" max="12" step="1" class="num-input">
+      </section>
+      <p class="setting-help" data-i18n="settings.columnsHelp"></p>
+
+      <section class="setting setting-row">
+        <span class="setting-label" data-i18n="settings.undo">Undo window (seconds)</span>
+        <input type="number" id="undo-seconds" min="0" max="600" step="5" class="num-input">
+      </section>
+      <p class="setting-help" data-i18n="settings.undoHelp"></p>
+
+      <section class="setting">
+        <span class="setting-label" data-i18n="settings.dataDir">Cache folder</span>
+        <code class="path-hint" id="data-dir">—</code>
+      </section>
+    </div>
+
+    <footer class="dialog-foot">
+      <button id="rescan-btn" class="btn" type="button" data-i18n="settings.rescan">Rebuild index</button>
+      <button class="btn" value="close" type="submit" data-variant="primary"
+              data-i18n="settings.close">Done</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog class="dialog detail-dialog" id="detail-dialog">
+  <div class="detail-dialog-body">
+    <div class="detail-dialog-content" id="detail-dialog-content"></div>
+    <button class="dialog-nav prev" id="detail-prev" type="button" data-i18n-attr="aria-label:action.prev">‹</button>
+    <button class="dialog-nav next" id="detail-next" type="button" data-i18n-attr="aria-label:action.next">›</button>
+  </div>
+</dialog>
+
+<dialog class="dialog undo-dialog" id="undo-dialog">
+  <header class="dialog-head">
+    <h2 data-i18n="undo.title">Waiting to be deleted</h2>
+    <button class="icon-btn" type="button" id="undo-close" data-i18n-attr="aria-label:action.close">
+      <span aria-hidden="true">×</span>
+    </button>
+  </header>
+  <p class="undo-hint" data-i18n="undo.hint"></p>
+  <div class="undo-grid" id="undo-grid"></div>
+  <p class="undo-empty" id="undo-empty" hidden data-i18n="undo.empty"></p>
+  <footer class="dialog-foot">
+    <button class="btn" id="undo-select-toggle" type="button" aria-pressed="false" data-i18n="undo.select">Select</button>
+    <button class="btn" id="undo-picked" type="button" hidden data-variant="danger"></button>
+    <button class="btn" id="undo-all" type="button" data-variant="danger" data-i18n="undo.all">Undo all</button>
+  </footer>
+</dialog>
+
+<div class="lightbox" id="lightbox" hidden>
+  <button class="lightbox-close" id="lightbox-close" type="button" data-i18n-attr="aria-label:action.close">×</button>
+  <button class="lightbox-nav prev" id="lightbox-prev" type="button" data-i18n-attr="aria-label:action.prev">‹</button>
+  <button class="lightbox-nav next" id="lightbox-next" type="button" data-i18n-attr="aria-label:action.next">›</button>
+  <div class="lightbox-canvas" id="lightbox-canvas"></div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script type="module" src="/gallery/assets/js/app.js"></script>
+</body>
+</html>

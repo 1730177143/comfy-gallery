@@ -11,6 +11,6 @@ dependencies = ["Pillow"]
 Repository = "https://github.com/1730177143/comfy-gallery"
 
 [tool.comfy]
-PublisherId = "aaalice"
+PublisherId = "cubestar"
 DisplayName = "Comfy Gallery"
 Icon = ""

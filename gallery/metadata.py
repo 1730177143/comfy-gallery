@@ -108,6 +108,16 @@ def read_payloads(path: Path) -> dict[str, Any]:
 
     payload["text_keys"] = sorted(key for key in info if isinstance(key, str))
 
+    # NovelAI keeps its parameters in Comment (JSON) with a Description copy of
+    # the prompt; the older NAIDiffusion build wrote an sd-metadata chunk.
+    for chunk, field in (("Comment", "comment"), ("Description", "description"),
+                         ("Software", "software"), ("sd-metadata", "sd_metadata")):
+        value = info.get(chunk)
+        if isinstance(value, bytes):
+            value = _decode_bytes(value)
+        if isinstance(value, str) and value.strip():
+            payload[field] = value
+
     prompt = _maybe_json(info.get("prompt"))
     workflow = _maybe_json(info.get("workflow"))
     if isinstance(prompt, dict):

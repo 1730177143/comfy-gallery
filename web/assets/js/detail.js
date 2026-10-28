@@ -2,7 +2,7 @@
 
 import { el, clear, chip, svgIcon, copyText, toast, formatBytes, formatDate, formatNumber } from "./dom.js";
 import { t } from "./i18n.js";
-import { fetchWorkflow, exportWorkflow, fileUrl } from "./api.js";
+import { fileUrl } from "./api.js";
 
 export function renderDetailEmpty(container) {
   clear(container);
@@ -243,32 +243,13 @@ function actionsRow(entry, recipe, payload, handlers) {
     },
   }, svgIcon("copy"), el("span", { text: t("action.copyPrompt") }));
 
-  const copyWorkflow = el("button", {
+  const sendWorkflow = el("button", {
     class: "btn",
     type: "button",
-    onclick: async () => {
-      try {
-        const data = await fetchWorkflow(entry.id);
-        await copyText(JSON.stringify(data.workflow || data.prompt, null, 2));
-        toast(t("toast.copied"));
-      } catch {
-        toast(t("toast.noWorkflow"));
-      }
-    },
-  }, svgIcon("copy"), el("span", { text: t("action.copyWorkflow") }));
-
-  const saveWorkflow = el("button", {
-    class: "btn",
-    type: "button",
-    onclick: async () => {
-      try {
-        const result = await exportWorkflow(entry.id);
-        toast(t("toast.saved", { name: result.name }));
-      } catch {
-        toast(t("toast.noWorkflow"));
-      }
-    },
-  }, svgIcon("save"), el("span", { text: t("action.saveWorkflow") }));
+    title: payload.has_workflow ? t("action.sendWorkflowHint") : t("toast.noWorkflow"),
+    disabled: !payload.has_workflow,
+    onclick: () => handlers.onSendWorkflow?.(entry.id),
+  }, svgIcon("workflow"), el("span", { text: t("action.sendWorkflow") }));
 
   const download = el("a", {
     class: "btn",
@@ -277,7 +258,7 @@ function actionsRow(entry, recipe, payload, handlers) {
   }, svgIcon("download"), el("span", { text: t("action.download") }));
 
   return el("footer", { class: "detail-actions" },
-    copyPrompt, copyWorkflow, saveWorkflow, download,
+    copyPrompt, sendWorkflow, download,
     handlers.onTrash ? trashButton(entry, handlers) : null,
   );
 }

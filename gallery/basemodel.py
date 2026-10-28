@@ -85,6 +85,11 @@ def _lora_names(recipe: dict[str, Any]) -> Iterable[str]:
 
 
 def infer(recipe: dict[str, Any], allow_lora: bool = False) -> dict[str, str] | None:
+    """The family, from the model names, a LoRA path, or the generator itself."""
+    if str(recipe.get("source") or "") == "novelai":
+        # NovelAI runs its own models; there is no checkpoint name to read.
+        return {"key": "novelai", "label": "NAI", "long": "NovelAI", "source": "source"}
+
     """Return ``{"key", "label", "long", "source"}`` for the recipe, or None.
 
     ``allow_lora`` is off for the card badge: a Pony LoRA on an SDXL checkpoint

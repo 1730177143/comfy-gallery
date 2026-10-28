@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS files (
     base_auto   TEXT NOT NULL DEFAULT '',
     snippet     TEXT NOT NULL DEFAULT '',
     base_source TEXT NOT NULL DEFAULT 'auto',
+    has_workflow INTEGER NOT NULL DEFAULT 0,
     version     INTEGER NOT NULL,
     search_text TEXT NOT NULL,
     recipe      TEXT
@@ -110,7 +111,8 @@ class GalleryIndex:
         columns = {row["name"] for row in connection.execute("PRAGMA table_info(files)")}
         if not columns:
             return
-        required = {"id", "base_model", "base_auto", "base_source", "snippet", "recipe", "search_text"}
+        required = {"id", "base_model", "base_auto", "base_source", "snippet", "has_workflow",
+                "recipe", "search_text"}
         if not required.issubset(columns):
             LOGGER.info("comfy-gallery index schema changed; rebuilding")
             connection.execute("DROP TABLE IF EXISTS files")
@@ -222,6 +224,7 @@ class GalleryIndex:
             base_key,
             basemodel.snippet_of(recipe),
             "auto",
+            1 if payload.get("workflow") else 0,
             config.INDEX_VERSION,
             build_search_blob(recipe, name, folder),
             json.dumps(recipe, ensure_ascii=False, separators=(",", ":")),
@@ -233,8 +236,8 @@ class GalleryIndex:
                 """
                 INSERT INTO files (id, root_id, rel, name, folder, ext, size, mtime, width, height,
                                    kind, source, base_model, base_auto, snippet, base_source,
-                                   version, search_text, recipe)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                   has_workflow, version, search_text, recipe)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                     root_id=excluded.root_id, rel=excluded.rel, name=excluded.name,
                     folder=excluded.folder, ext=excluded.ext, size=excluded.size,
@@ -243,7 +246,7 @@ class GalleryIndex:
                     base_auto=excluded.base_auto,
                     base_model=CASE WHEN files.base_source = 'manual'
                                     THEN files.base_model ELSE excluded.base_model END,
-                    snippet=excluded.snippet,
+                    snippet=excluded.snippet, has_workflow=excluded.has_workflow,
                     version=excluded.version, search_text=excluded.search_text,
                     recipe=excluded.recipe
                 """,
@@ -294,7 +297,7 @@ class GalleryIndex:
             rows = connection.execute(
                 f"""
                 SELECT id, name, folder, width, height, size, mtime, source, kind, root_id,
-                       base_model, snippet
+                       base_model, snippet, has_workflow
                 FROM files {where} ORDER BY {order} LIMIT ? OFFSET ?
                 """,
                 [*params, max(1, min(200, limit)), max(0, offset)],
@@ -319,13 +322,15 @@ class GalleryIndex:
     def store_recipe(self, entry_id: str, recipe: dict[str, Any]) -> None:
         with self._lock:
             connection = self.db()
+            base_key = basemodel.key_of(recipe)
             connection.execute(
                 "UPDATE files SET recipe = ?, source = ?, base_auto = ?, "
                 "base_model = CASE WHEN base_source = 'manual' THEN base_model ELSE ? END, "
                 "snippet = ? WHERE id = ?",
                 (json.dumps(recipe, ensure_ascii=False, separators=(",", ":")),
                  recipe.get("source") or "none",
-                 basemodel.key_of(recipe),
+                 base_key,
+                 base_key,
                  basemodel.snippet_of(recipe),
                  entry_id),
             )

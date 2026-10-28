@@ -37,6 +37,7 @@ const ICON_PATHS = {
   zoom: '<circle cx="7.2" cy="7.2" r="4.2"/><path d="M10.3 10.3 13.4 13.4"/>',
   check: '<rect x="2.4" y="2.4" width="11.2" height="11.2" rx="2.4"/><path d="M5.2 8.2 7.2 10.2 10.9 6"/>',
   undo: '<path d="M3.2 7.4h6.1a3.3 3.3 0 1 1 0 6.6H6.2"/><path d="M5.4 4.6 2.6 7.4l2.8 2.8"/>',
+  workflow: '<rect x="1.6" y="2.2" width="4.6" height="3.6" rx="1"/><rect x="9.8" y="10.2" width="4.6" height="3.6" rx="1"/><path d="M6.2 4h3.4v8.2"/>',
   panelRight: '<rect x="1.8" y="2.8" width="7" height="10.4" rx="1.2"/><rect x="10.2" y="2.8" width="4" height="10.4" rx="1.2"/>',
   panelModal: '<rect x="2.2" y="2.6" width="11.6" height="10.8" rx="1.4"/><rect x="4.6" y="5" width="6.8" height="6" rx="1"/>',
   imageOnly: '<rect x="1.8" y="2.8" width="12.4" height="10.4" rx="1.4"/><circle cx="5.4" cy="6.2" r="1"/>',

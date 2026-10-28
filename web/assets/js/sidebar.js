@@ -4,7 +4,7 @@ import { el, clear, svgIcon, formatNumber } from "./dom.js";
 import { t } from "./i18n.js";
 
 export const BASE_LABEL = {
-  krea2: "KR2", flux: "FLUX", sdxl: "XL", illustrious: "IL", noobai: "NOOB",
+  novelai: "NAI", krea2: "KR2", flux: "FLUX", sdxl: "XL", illustrious: "IL", noobai: "NOOB",
   animagine: "ANG", pony: "PONY", qwen: "QWEN", wan: "WAN", hunyuan: "HY",
   ltx: "LTX", minimax: "MM", sd15: "SD15", sd3: "SD3", sd21: "SD21",
 };

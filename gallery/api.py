@@ -164,6 +164,7 @@ async def api_item(request: web.Request) -> web.StreamResponse:
         "detected": entry.get("base_auto") or "",
         "base_source": entry.get("base_source") or "auto",
         "families": basemodel.families(),
+        "has_workflow": bool(entry.get("has_workflow")),
         "favorite": entry["id"] in set(config.settings().get("favorites") or []),
         "file_url": f"/gallery/api/file?id={quote(entry['id'], safe='')}",
         "thumb_url": f"/gallery/api/thumb?id={quote(entry['id'], safe='')}&s=768",

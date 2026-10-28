@@ -10,7 +10,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from gallery.parse import build_from_a1111, build_from_prompt  # noqa: E402
+import json  # noqa: E402
+
+from gallery.parse import build_from_a1111, build_from_prompt, build_recipe  # noqa: E402
 
 FAILURES: list[str] = []
 
@@ -96,7 +98,41 @@ def case_a1111() -> None:
     check([lora["name"] for lora in recipe["loras"]] == ["style_a"], "a1111 lora tag parsed")
 
 
-for case in (case_conditioning_pair, case_zeroed_negative, case_lora_rows, case_a1111):
+def case_novelai() -> None:
+    comment = {
+        "prompt": "1girl, solo, masterpiece, best quality",
+        "uc": "lowres, bad anatomy, worst quality",
+        "steps": 28,
+        "scale": 5.5,
+        "seed": 1234567890,
+        "sampler": "k_euler_ancestral",
+        "noise_schedule": "karras",
+        "width": 832,
+        "height": 1216,
+        "n_samples": 1,
+        "sm": False,
+        "sm_dyn": False,
+    }
+    recipe = build_recipe({
+        "comment": json.dumps(comment),
+        "description": "1girl, solo, masterpiece, best quality",
+    })
+    check(recipe["source"] == "novelai", "novelai source detected", recipe["source"])
+    check(recipe["positive"].startswith("1girl, solo"), "novelai prompt read", recipe["positive"][:30])
+    check(recipe["negative"].startswith("lowres"), "novelai uc becomes the negative", recipe["negative"][:24])
+    sampler = recipe["samplers"][0]
+    check(sampler["steps"] == 28 and sampler["cfg"] == 5.5, "novelai steps/scale mapped", sampler)
+    check(sampler["seed"] == 1234567890, "novelai seed read", sampler["seed"])
+    check("k_euler_ancestral" in (sampler["sampler"] or ""), "novelai sampler read", sampler["sampler"])
+    check(recipe["latent"]["width"] == 832 and recipe["latent"]["height"] == 1216,
+          "novelai size read", recipe["latent"])
+
+    # A Comment chunk that is not NovelAI must not be mistaken for one.
+    other = build_recipe({"comment": json.dumps({"note": "hello"})})
+    check(other["source"] != "novelai", "non-novelai comment ignored", other["source"])
+
+
+for case in (case_conditioning_pair, case_zeroed_negative, case_lora_rows, case_a1111, case_novelai):
     print(f"{case.__name__}:")
     case()
 

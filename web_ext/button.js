@@ -12,6 +12,10 @@ const TOOLTIP = "Launch Gallery (Shift+Click opens in new window)";
 const GALLERY_PATH = "/gallery";
 const NEW_WINDOW = "width=1440,height=960,resizable=yes,scrollbars=yes,status=yes";
 const BUTTON_GROUP_CLASS = "comfy-gallery-top-menu-group";
+// The gallery page hands a workflow over through localStorage; see
+// web/assets/js/send.js for the writing half.
+const PENDING_KEY = "comfy-gallery:pending-workflow";
+const PENDING_TTL = 60000;
 const MAX_ATTACH_ATTEMPTS = 120;
 
 const GALLERY_ICON = `
@@ -75,6 +79,43 @@ async function attachLegacyButton(attempt = 0) {
   settingsGroup.element.before(group.element);
 }
 
+async function loadPendingWorkflow() {
+  let raw = null;
+  try {
+    raw = localStorage.getItem(PENDING_KEY);
+  } catch {
+    return;
+  }
+  if (!raw) return;
+  try {
+    localStorage.removeItem(PENDING_KEY);
+  } catch {
+    /* nothing to clean up */
+  }
+
+  let payload = null;
+  try {
+    payload = JSON.parse(raw);
+  } catch {
+    return;
+  }
+  if (!payload || !payload.workflow) return;
+  if (Date.now() - (payload.at || 0) > PENDING_TTL) return;   // stale send
+
+  // The canvas may still be initialising when a fresh tab opens.
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    if (typeof app.loadGraphData === "function" && app.graph) {
+      try {
+        await app.loadGraphData(payload.workflow);
+      } catch (error) {
+        console.warn("comfy-gallery: could not load the sent workflow", error);
+      }
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+}
+
 app.registerExtension({
   name: "Comfy.Gallery.TopBar",
   actionBarButtons: [
@@ -85,6 +126,11 @@ app.registerExtension({
     },
   ],
   async setup() {
+    loadPendingWorkflow();
+    window.addEventListener("storage", (event) => {
+      if (event.key === PENDING_KEY) loadPendingWorkflow();
+    });
+
     // The action bar mounts asynchronously; give Vue a few frames to render it
     // before deciding the API was not honoured.
     for (let frame = 0; frame < 12; frame += 1) {

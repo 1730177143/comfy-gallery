@@ -5,9 +5,11 @@ from __future__ import annotations
 from typing import Any
 
 from .a1111 import build_from_a1111
+from .novelai import build_from_novelai, looks_like_novelai
 from .recipe import build_from_prompt, build_search_blob
 
-__all__ = ["build_recipe", "build_search_blob", "build_from_a1111", "build_from_prompt"]
+__all__ = ["build_recipe", "build_search_blob", "build_from_a1111", "build_from_novelai",
+           "build_from_prompt", "looks_like_novelai"]
 
 
 def build_recipe(payload: dict[str, Any]) -> dict[str, Any]:
@@ -32,6 +34,9 @@ def build_recipe(payload: dict[str, Any]) -> dict[str, Any]:
             graph_recipe["source"] = "a1111+comfy"
             return graph_recipe
         return recipe
+
+    if looks_like_novelai(payload):
+        return build_from_novelai(payload)
 
     workflow = payload.get("workflow")
     if isinstance(workflow, dict) and workflow:

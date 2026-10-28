@@ -85,10 +85,17 @@
   font-size: 22px;
 }
 
-.card-badge {
+.card-tags {
   position: absolute;
   top: 7px;
   left: 7px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.card-badge {
   padding: 1px 6px;
   font-size: 10px;
   font-weight: 700;
@@ -318,3 +325,22 @@
   background: rgba(10, 12, 16, 0.58);
   box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--muted) 60%, transparent);
 }
+
+/* "Has a workflow" chip, sitting beside the base-model badge. */
+.card-wf {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 18px;
+  padding: 0;
+  color: #dfe4ee;
+  background: rgba(10, 12, 16, 0.62);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  backdrop-filter: blur(5px);
+  transition: background 110ms ease, color 110ms ease;
+}
+
+.card-wf:hover { color: var(--accent-ink); background: var(--accent); }
+.card-wf svg { width: 12px; height: 12px; }

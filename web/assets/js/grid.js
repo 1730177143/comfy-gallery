@@ -9,8 +9,10 @@ import { el, svgIcon } from "./dom.js";
 import { t } from "./i18n.js";
 import { thumbUrl } from "./api.js";
 
+const SOURCE_LABEL = { a1111: "A1111", comfy: "ComfyUI", novelai: "NovelAI", "comfy-ui": "UI", video: "Video", none: "—" };
+
 const BASE_LABEL = {
-  krea2: "KR2", flux: "FLUX", sdxl: "XL", illustrious: "IL", noobai: "NOOB",
+  novelai: "NAI", krea2: "KR2", flux: "FLUX", sdxl: "XL", illustrious: "IL", noobai: "NOOB",
   animagine: "ANG", pony: "PONY", qwen: "QWEN", wan: "WAN", hunyuan: "HY",
   ltx: "LTX", minimax: "MM", sd15: "SD15", sd3: "SD3", sd21: "SD21",
 };
@@ -20,7 +22,7 @@ const GAP = 10;
 // Text block under the image; used only to balance columns before measuring.
 const INFO_HEIGHT = 46;
 
-export function createGrid({ gridEl, onSelect, onZoom, onFavorite, onDelete }) {
+export function createGrid({ gridEl, onSelect, onZoom, onFavorite, onDelete, onSendWorkflow }) {
   const cards = new Map();   // id -> element, in insertion order
   const items = new Map();   // id -> item data, for re-layout
   let selectedId = null;
@@ -66,8 +68,9 @@ export function createGrid({ gridEl, onSelect, onZoom, onFavorite, onDelete }) {
     // Always say something about the base model: an unrecognised family is a
     // fact worth showing (and fixable from the detail panel), silence is not.
     const baseKey = item.base_model || (item.source !== "none" ? "unknown" : "");
+    const tags = el("span", { class: "card-tags" });
     if (baseKey) {
-      media.append(el("span", {
+      tags.append(el("span", {
         class: "card-badge",
         dataset: { base: baseKey },
         title: item.base_model ? undefined : t("base.unknownHint"),
@@ -76,6 +79,20 @@ export function createGrid({ gridEl, onSelect, onZoom, onFavorite, onDelete }) {
           : t("base.unknownShort"),
       }));
     }
+    if (item.has_workflow) {
+      const wf = el("button", {
+        class: "card-wf",
+        type: "button",
+        title: t("action.hasWorkflow"),
+        "aria-label": t("action.hasWorkflow"),
+      }, svgIcon("workflow"));
+      wf.addEventListener("click", (event) => {
+        event.stopPropagation();
+        onSendWorkflow?.(item.id);
+      });
+      tags.append(wf);
+    }
+    if (tags.childElementCount) media.append(tags);
     if (item.source === "none") {
       media.append(el("span", { class: "card-warn", text: t("badge.none") }));
     }
@@ -108,7 +125,7 @@ export function createGrid({ gridEl, onSelect, onZoom, onFavorite, onDelete }) {
 
     const metaParts = [];
     if (item.width && item.height) metaParts.push(`${item.width}×${item.height}`);
-    metaParts.push(item.source === "a1111" ? "A1111" : item.source === "none" ? "—" : "ComfyUI");
+    metaParts.push(SOURCE_LABEL[item.source] || item.source);
 
     media.append(el("span", { class: "card-info" },
       el("span", { class: "card-name", text: item.name }),

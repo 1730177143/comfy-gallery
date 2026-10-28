@@ -20,7 +20,7 @@ WEB_ROOT = PACKAGE_ROOT / "web"
 
 # Bumped whenever the stored recipe payload changes shape. Cached parse results
 # written by an older build are then recomputed instead of served half-empty.
-INDEX_VERSION = 5
+INDEX_VERSION = 7
 
 IMAGE_EXTS = frozenset({".png", ".jpg", ".jpeg", ".webp", ".bmp"})
 VIDEO_EXTS = frozenset({".mp4", ".webm", ".mov", ".mkv", ".m4v", ".avi"})

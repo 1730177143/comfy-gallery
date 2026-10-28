@@ -42,7 +42,7 @@ mklink /J comfy-gallery D:\path\to\comfy-gallery
 
 - **左侧栏**：`全部图片`、`收藏`，以及按目录层级列出的文件夹（带张数）；下方 `基模` 可一键筛选 Krea2 / SDXL / Illustrious 等家族。
 - **顶部**：全库搜索（文件名、文件夹、提示词、模型名、LoRA 名、采样器名都能命中）、排序、`网格` / `瀑布流` 切换、刷新。
-- **卡片**：左上角是基模徽章，右上角是收藏与删除；瀑布流下显示两行提示词摘要，网格模式显示文件名。
+- **卡片**：左上角是基模徽章，紧跟一个工作流小图标（该图内嵌了工作流时才出现，点它直接发送到 ComfyUI）；右上角是收藏与删除；瀑布流下显示两行提示词摘要，网格模式显示文件名。
 - **多选**：顶栏的勾选按钮进入多选模式，点卡片即选中；顶部条可 `全选`、批量`收藏`、批量`删除`，`Esc` 退出。
 - **详情方式**：顶栏三档切换 —— `侧边显示`（默认，右侧面板）、`大图显示`（弹窗，左图右参数，两侧箭头翻页）、`只看原图`（全屏看图，`←` `→` 切换，不渲染参数）。
 - **设置**：默认布局、每行数量（0 = 自动）、额外目录、是否包含视频、**纯看图模式滚轮切图**、每页数量、撤回时间、缓存目录、重建索引。
@@ -53,7 +53,7 @@ mklink /J comfy-gallery D:\path\to\comfy-gallery
 ## 面板内容
 
 - **生成参数**：正向与负向提示词，可一键复制。
-- **基模**：识别出的模型家族（由主模型 / UNET / CLIP 类型推断，仅靠 LoRA 推断时会注明）。支持 Krea2、Qwen Image、Flux、Wan、Hunyuan、LTX、MiniMax、Illustrious、NoobAI、Animagine、**Anima**、Pony、SDXL、SD3、SD 1.5 / 2.1。
+- **基模**：识别出的模型家族（由主模型 / UNET / CLIP 类型推断，仅靠 LoRA 推断时会注明）。支持 Krea2、Qwen Image、Flux、Wan、Hunyuan、LTX、MiniMax、Illustrious、NoobAI、Animagine、**Anima**、Pony、SDXL、SD3、SD 1.5 / 2.1，以及 NovelAI（`NAI`）。
 - **模型**：主模型 / UNET、VAE、CLIP（含类型与 CLIP 跳过层）。
 - **LoRA**：名称、权重、是否启用；未启用的行会淡化并标记 off。
 - **采样器**：每个采样节点一张卡片，含步数、CFG、采样器、调度器、种子、重绘幅度、步数区间；多次采样或高噪 / 低噪分离的工作流会各自列出。
@@ -62,7 +62,9 @@ mklink /J comfy-gallery D:\path\to\comfy-gallery
 
 数值取自解析连线后的真实值，所以由 Seed 节点、数学节点、比例选择器算出来的参数也能显示；基础尺寸由比例选择器推算时带 `≈` 标记。
 
-底部动作：复制提示词、复制工作流、保存到工作流库（写入 ComfyUI 的 `Workflows › gallery/`）、下载原图、移到回收站。
+底部动作：复制提示词、**发送到 ComfyUI**、下载原图、移到回收站。
+
+「发送到 ComfyUI」会把该文件内嵌的工作流加载到 ComfyUI 画布：新开（或复用）一个画布标签页，由本包随附的前端扩展 `app.loadGraphData()` 载入。文件里没有工作流时按钮为禁用状态。注意它会替换该标签页当前的图（可用 `Ctrl+Z` 撤销）。
 
 ## 支持的元数据来源
 
@@ -70,6 +72,7 @@ mklink /J comfy-gallery D:\path\to\comfy-gallery
 | --- | --- |
 | ComfyUI `prompt` | 原生 `SaveImage` 等写入的 API 图，解析最完整 |
 | Automatic1111 `parameters` | ComfyUI-Image-Saver 等写入的扁平参数串，含 `<lora:...>` 标签 |
+| NovelAI `Comment` | NovelAI 写入的 JSON（提示词、uc、steps、scale、seed、sampler、尺寸），旧版 `sd-metadata` 同样支持 |
 | 仅 `workflow` | 只存了编辑器工作流时按核心节点近似读取，面板标注为近似 |
 | 无元数据 | 仍然列出并可浏览，面板标注「无元数据」 |
 

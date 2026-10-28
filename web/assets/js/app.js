@@ -9,6 +9,7 @@ import { createSettings } from "./settings.js";
 import { createUndoPanel } from "./undo.js";
 import { createViewer } from "./viewer.js";
 import { createManager } from "./manage.js";
+import { sendWorkflowToCanvas } from "./send.js";
 import { dom } from "./refs.js";
 import { el, clear, toast, formatNumber, svgIcon } from "./dom.js";
 
@@ -202,6 +203,20 @@ function toggleSidebar() {
   icon.append(svgIcon(collapsed ? "chevronLeft" : "chevronRight"));
 }
 
+/** Load this file's workflow onto the ComfyUI canvas (other tab, same origin). */
+async function sendWorkflow(id) {
+  try {
+    const data = await api.fetchWorkflow(id);
+    if (!data.workflow) {
+      toast(t("toast.noWorkflow"));
+      return;
+    }
+    toast(sendWorkflowToCanvas(data.workflow) ? t("toast.sentWorkflow") : t("toast.failed"));
+  } catch {
+    toast(t("toast.noWorkflow"));
+  }
+}
+
 /* ---------- selection and actions ---------- */
 
 function closeDetail() {
@@ -234,6 +249,7 @@ async function selectItem(id) {
       onZoom: openLightbox,
       onFavorite: toggleFavorite,
       onTrash: trashItem,
+      onSendWorkflow: sendWorkflow,
       onClose: clearSelection,
       onBaseChange: (base) => changeBase(id, base),
     };
@@ -514,6 +530,7 @@ async function boot() {
     onZoom: openLightbox,
     onFavorite: toggleFavorite,
     onDelete: (id) => manager.deleteItems([id]),
+    onSendWorkflow: sendWorkflow,
   });
   dom.grid.setAttribute("role", "listbox");
   dom.grid.setAttribute("aria-label", t("search.label"));

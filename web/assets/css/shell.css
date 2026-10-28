@@ -172,6 +172,7 @@
 [data-base="sd21"] { --badge-tone: #9aa0ac; }
 /* Unknown is a neutral outline rather than a family colour. */
 [data-base="unknown"] { --badge-tone: #9aa0ac; }
+[data-base="novelai"] { --badge-tone: #7fb3ff; }
 /* ---------- main + toolbar ---------- */
 
 .main {

@@ -6,28 +6,69 @@
 import { el, clear } from "./dom.js";
 import { fileUrl } from "./api.js";
 
-export function createViewer({ lightbox, canvas, closeButton, prevButton, nextButton, onStep, wheelEnabled }) {
+export function createViewer({
+  lightbox, canvas, closeButton, prevButton, nextButton,
+  onStep, wheelEnabled, clickClose,
+}) {
   let open = false;
   let lastWheel = 0;
-
-  function show(id) {
-    clear(canvas);
-    canvas.append(el("img", { src: fileUrl(id), alt: "" }));
-    lightbox.hidden = false;
-    open = true;
-    closeButton.focus();
-  }
+  let image = null;
+  let token = 0;
 
   function close() {
     lightbox.hidden = true;
     open = false;
+    token += 1;                 // cancel any in-flight decode
+    if (image) {
+      image.remove();
+      image = null;
+    }
     clear(canvas);
   }
 
+  async function show(id) {
+    const url = fileUrl(id);
+    const mine = ++token;
+
+    if (!image) {
+      // First open: nothing to preserve, so the element can start loading at once.
+      image = el("img", { src: url, alt: "" });
+      canvas.append(image);
+      lightbox.hidden = false;
+      open = true;
+      closeButton.focus();
+      return;
+    }
+
+    lightbox.hidden = false;
+    open = true;
+
+    // Decode the next picture off-screen and only then swap it in. Replacing the
+    // src of a live element makes the browser blank it while it loads, which is
+    // the flicker you see when stepping with the wheel.
+    try {
+      const preload = new Image();
+      preload.src = url;
+      await preload.decode();
+    } catch {
+      /* decode() can reject for huge or unusual files; the swap below still works */
+    }
+    if (mine !== token || !image) return;   // a newer step won the race
+    image.src = url;
+  }
+
   closeButton.addEventListener("click", close);
+
+  // Clicking anything that is not the picture leaves the viewer — but the
+  // navigation arrows must keep stepping instead of closing it.
   lightbox.addEventListener("click", (event) => {
-    if (event.target === lightbox) close();
+    if (!open) return;
+    if (event.target === image) return;
+    if (event.target.closest?.(".lightbox-nav")) return;
+    if (clickClose && !clickClose()) return;
+    close();
   });
+
   prevButton.addEventListener("click", () => onStep(-1));
   nextButton.addEventListener("click", () => onStep(1));
 

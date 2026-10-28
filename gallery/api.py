@@ -110,6 +110,7 @@ async def api_state(_request: web.Request) -> web.StreamResponse:
         "server_time": time.time(),
         "undo_seconds": int(settings.get("undo_seconds") or 0),
         "wheel_navigate": bool(settings.get("wheel_navigate")),
+        "click_close_viewer": settings.get("click_close_viewer", True) is not False,
         "wheel_nav": bool(settings.get("wheel_nav", True)),
         "roots": [{"id": root.id, "label": root.label, "path": str(root.path)}
                   for root in config.roots()],
@@ -439,6 +440,8 @@ async def api_settings(request: web.Request) -> web.StreamResponse:
             patch["wheel_nav"] = body["wheel_nav"]
         if isinstance(body.get("wheel_navigate"), bool):
             patch["wheel_navigate"] = body["wheel_navigate"]
+        if isinstance(body.get("click_close_viewer"), bool):
+            patch["click_close_viewer"] = body["click_close_viewer"]
         if body.get("undo_seconds") is not None:
             try:
                 patch["undo_seconds"] = max(0, min(600, int(body["undo_seconds"])))

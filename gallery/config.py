@@ -46,6 +46,8 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "undo_seconds": 60,
     # Let the mouse wheel step through images in the full-screen viewer.
     "wheel_navigate": False,
+    # Clicking outside the picture closes the full-screen viewer.
+    "click_close_viewer": True,
 }
 
 _SETTINGS_LOCK = threading.RLock()

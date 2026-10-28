@@ -34,6 +34,7 @@ const state = {
   detailMode: "side",
   columns: 0,
   wheelNavigate: false,
+  clickCloseViewer: true,
   selectMode: false,
   picked: new Set(),
   pending: new Map(),
@@ -299,6 +300,10 @@ function applyWheel(on) {
   state.wheelNavigate = Boolean(on);
 }
 
+function applyClickClose(on) {
+  state.clickCloseViewer = on !== false;
+}
+
 function applyColumns(count) {
   state.columns = Math.max(0, Math.min(12, Number(count) || 0));
   grid.setColumns(state.columns);
@@ -544,6 +549,7 @@ async function boot() {
     nextButton: dom.lightboxNext,
     onStep: stepSelection,
     wheelEnabled: () => state.wheelNavigate,
+    clickClose: () => state.clickCloseViewer,
   });
 
   manager = createManager({
@@ -571,6 +577,7 @@ async function boot() {
     applyLayout: setLayout,
     applyColumns,
     applyWheel,
+    applyClickClose,
     onDataChanged: async () => {
       await loadSidebar();
       await loadPage(true);
@@ -587,6 +594,7 @@ async function boot() {
     setLayout(initial.layout || "grid", false);
     applyColumns(initial.columns || 0);
     applyWheel(initial.wheel_navigate);
+    applyClickClose(initial.click_close_viewer);
     setDetailMode(initial.detail_mode || "side", false);
   }
 

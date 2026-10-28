@@ -8,13 +8,15 @@ import { t } from "./i18n.js";
  * changes what gets indexed calls ``onDataChanged`` so the caller can reload the
  * sidebar and the first page; layout changes only need ``applyLayout``.
  */
-export function createSettings({ dialog, button, layoutGroups, applyLayout, applyColumns, applyWheel, onDataChanged }) {
+export function createSettings({ dialog, button, layoutGroups, applyLayout, applyColumns, applyWheel,
+                                 applyClickClose, onDataChanged }) {
   const refs = {
     rootList: dialog.querySelector("#root-list"),
     rootInput: dialog.querySelector("#root-input"),
     rootAdd: dialog.querySelector("#root-add-btn"),
     includeVideo: dialog.querySelector("#include-video"),
     wheelNav: dialog.querySelector("#wheel-nav"),
+    clickClose: dialog.querySelector("#click-close"),
     pageSize: dialog.querySelector("#page-size"),
     columns: dialog.querySelector("#columns-input"),
     undoSeconds: dialog.querySelector("#undo-seconds"),
@@ -67,6 +69,7 @@ export function createSettings({ dialog, button, layoutGroups, applyLayout, appl
       const settings = data.settings || {};
       refs.includeVideo.checked = Boolean(settings.include_video);
       refs.wheelNav.checked = Boolean(settings.wheel_navigate);
+      refs.clickClose.checked = settings.click_close_viewer !== false;
       refs.pageSize.value = settings.page_size || 60;
       refs.columns.value = settings.columns || 0;
       refs.undoSeconds.value = settings.undo_seconds ?? 60;
@@ -126,6 +129,15 @@ export function createSettings({ dialog, button, layoutGroups, applyLayout, appl
       applyWheel(refs.wheelNav.checked);
       try {
         await save({ wheel_navigate: refs.wheelNav.checked });
+      } catch {
+        toast(t("toast.failed"));
+      }
+    });
+
+    refs.clickClose.addEventListener("change", async () => {
+      applyClickClose(refs.clickClose.checked);
+      try {
+        await save({ click_close_viewer: refs.clickClose.checked });
       } catch {
         toast(t("toast.failed"));
       }

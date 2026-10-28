@@ -109,3 +109,10 @@ Everything stays on this machine; nothing is uploaded. Deleting that folder rebu
 - Files with only a `workflow` are read by core node widget order, so custom nodes may be missed.
 - The base-model badge is a guess; a renamed checkpoint may not be recognised, in which case no badge is shown.
 - The pack only indexes and reads; apart from the single-file actions above it does no batch delete, rating or tagging, and registers no nodes.
+
+## License
+
+Released under the [MIT License](LICENSE): use it, change it and redistribute it, commercially
+included, as long as the copyright notice and the licence text stay with it.
+
+Third-party components keep their own terms — Pillow (MIT-CMU), and ComfyUI itself (GPL-3.0).

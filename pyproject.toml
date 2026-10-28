@@ -3,6 +3,7 @@ name = "comfy-gallery"
 version = "0.1.0"
 description = "Full-page ComfyUI output gallery with recipe-style metadata inspection"
 license = { text = "MIT" }
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 dependencies = ["Pillow"]
 

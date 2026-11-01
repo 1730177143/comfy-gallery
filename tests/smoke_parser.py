@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import json  # noqa: E402
 
 from gallery.parse import build_from_a1111, build_from_prompt, build_recipe  # noqa: E402
+from gallery import basemodel  # noqa: E402
 
 FAILURES: list[str] = []
 
@@ -132,7 +133,34 @@ def case_novelai() -> None:
     check(other["source"] != "novelai", "non-novelai comment ignored", other["source"])
 
 
-for case in (case_conditioning_pair, case_zeroed_negative, case_lora_rows, case_a1111, case_novelai):
+def case_moss_family() -> None:
+    from_model = basemodel.infer(
+        {"models": {"unet": [{"name": "moss_image_sft_nvfp4.safetensors"}]}},
+        allow_lora=True,
+    )
+    check(from_model and from_model["key"] == "moss", "moss read from the model name", from_model)
+
+    # Some exporters record no model at all; the file name carries it instead.
+    from_name = basemodel.infer({"models": {}}, allow_lora=True,
+                                filename="Moss25-865045361575048_00001_.png")
+    check(from_name and from_name["key"] == "moss", "moss read from the file name", from_name)
+    check(from_name and from_name["source"] == "filename", "filename is reported as the source", from_name)
+
+    # "mossy" is scenery, not a model.
+    scenery = basemodel.infer({"models": {}, "positive": "mossy stone steps"},
+                              allow_lora=True, filename="a_shot_on_mossy_stone_00001_.png")
+    check(scenery is None, "mossy scenery is not mistaken for MOSS", scenery)
+
+    # A known family still wins over the file name.
+    model_wins = basemodel.infer(
+        {"models": {"checkpoints": [{"name": "moodyCutieMixFreeKrea2_v60"}]}},
+        allow_lora=True, filename="Moss25-1_00001_.png",
+    )
+    check(model_wins and model_wins["key"] == "krea2", "model name outranks the file name", model_wins)
+
+
+for case in (case_conditioning_pair, case_zeroed_negative, case_lora_rows, case_a1111, case_novelai,
+             case_moss_family):
     print(f"{case.__name__}:")
     case()
 

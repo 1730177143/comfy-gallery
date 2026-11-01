@@ -14,6 +14,13 @@ from typing import Any, Iterable
 _FAMILIES: tuple[tuple[str, str, str, tuple[str, ...]], ...] = (
     ("krea2", "KR2", "Krea 2", ("krea2", "krea-2", "krea_2")),
     ("qwen", "QWEN", "Qwen Image", ("qwen_image", "qwen-image", "qwenimage")),
+    # MOSS-Image: OpenMOSS's 5B text-to-image model, its own DiT + Qwen3.5
+    # encoder, so it must be tested before any SDXL-style rule. The needles
+    # need the separator or version digit, otherwise an unrelated file whose
+    # prompt or name merely says "mossy" would be labelled a MOSS render.
+    ("moss", "MOSS", "MOSS-Image",
+     ("moss_image", "moss-image", "mossimage", "moss_base", "moss_sft",
+      "moss2", "moss3", "moss4")),
     ("flux", "FLUX", "Flux", ("flux",)),
     ("wan", "WAN", "Wan", ("wan2", "wan_", "wan-", "wanvideo")),
     ("hunyuan", "HY", "Hunyuan", ("hunyuan",)),
@@ -84,7 +91,13 @@ def _lora_names(recipe: dict[str, Any]) -> Iterable[str]:
         yield str(lora.get("path") or lora.get("name") or "")
 
 
-def infer(recipe: dict[str, Any], allow_lora: bool = False) -> dict[str, str] | None:
+def _found(key: str, source: str) -> dict[str, str]:
+    return {"key": key, "label": SHORT_LABELS.get(key, key.upper()),
+            "long": LONG_LABELS.get(key, key), "source": source}
+
+
+def infer(recipe: dict[str, Any], allow_lora: bool = False,
+          filename: str = "") -> dict[str, str] | None:
     """The family, from the model names, a LoRA path, or the generator itself."""
     if str(recipe.get("source") or "") == "novelai":
         # NovelAI runs its own models; there is no checkpoint name to read.
@@ -99,14 +112,18 @@ def infer(recipe: dict[str, Any], allow_lora: bool = False) -> dict[str, str] | 
     for name in _model_names(recipe):
         key = _match(name)
         if key:
-            return {"key": key, "label": SHORT_LABELS.get(key, key.upper()),
-                    "long": LONG_LABELS.get(key, key), "source": "model"}
+            return _found(key, "model")
     if allow_lora:
         for name in _lora_names(recipe):
             key = _match(name, strict=True)
             if key:
-                return {"key": key, "label": SHORT_LABELS.get(key, key.upper()),
-                        "long": LONG_LABELS.get(key, key), "source": "lora"}
+                return _found(key, "lora")
+    # Weakest evidence: some exporters write no model name at all and keep it in
+    # the file name instead ("Moss25-<seed>_00001_.png").
+    if filename:
+        key = _match(filename)
+        if key:
+            return _found(key, "filename")
     return None
 
 
@@ -116,14 +133,14 @@ def families() -> list[dict[str, str]]:
             for key, short, long_label, _needles in _FAMILIES]
 
 
-def key_of(recipe: dict[str, Any]) -> str:
+def key_of(recipe: dict[str, Any], filename: str = "") -> str:
     """The family stored in the index.
 
     Must match what the detail panel reports, or the same file would show one
     badge on the card and another in the panel. Both therefore allow the LoRA
     fallback; the panel still says when the answer came from a LoRA.
     """
-    found = infer(recipe, allow_lora=True)
+    found = infer(recipe, allow_lora=True, filename=filename)
     return found["key"] if found else ""
 
 

@@ -53,7 +53,9 @@ mklink /J comfy-gallery D:\path\to\comfy-gallery
 ## 面板内容
 
 - **生成参数**：正向与负向提示词，可一键复制。
-- **基模**：识别出的模型家族（由主模型 / UNET / CLIP 类型推断，仅靠 LoRA 推断时会注明）。支持 Krea2、Qwen Image、Flux、Wan、Hunyuan、LTX、MiniMax、Illustrious、NoobAI、Animagine、**Anima**、Pony、SDXL、SD3、SD 1.5 / 2.1，以及 NovelAI（`NAI`）。
+- **基模**：识别出的模型家族（由主模型 / UNET / CLIP 类型推断，仅靠 LoRA 推断时会注明）。支持 Krea2、**MOSS-Image**、Qwen Image、Flux、Wan、Hunyuan、LTX、MiniMax、Illustrious、NoobAI、Animagine、**Anima**、Pony、SDXL、SD3、SD 1.5 / 2.1，以及 NovelAI（`NAI`）。
+
+识别顺序：模型文件名 → LoRA 路径 → **图片文件名**。有些导出器（例如某些 Image Saver 配置）不写模型名，只把模型留在文件名里（如 `Moss25-865045361575048_00001_.png`），这时会用文件名兜底，并在详情面板标注「由文件名推断」。识别不出的仍显示 `UNK`，可手动指定。
 - **模型**：主模型 / UNET、VAE、CLIP（含类型与 CLIP 跳过层）。
 - **LoRA**：名称、权重、是否启用；未启用的行会淡化并标记 off。
 - **采样器**：每个采样节点一张卡片，含步数、CFG、采样器、调度器、种子、重绘幅度、步数区间；多次采样或高噪 / 低噪分离的工作流会各自列出。

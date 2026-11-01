@@ -156,12 +156,13 @@ async def api_item(request: web.Request) -> web.StreamResponse:
         # on disk: re-read it once and keep the result.
         payload = metadata.read_payloads(source_path)
         recipe = build_recipe(payload)
-        INDEX.store_recipe(entry["id"], recipe)
+        INDEX.store_recipe(entry["id"], recipe, entry.get("name") or "")
 
     return _json({
         "entry": dict(entry),
         "recipe": recipe,
-        "base_model": basemodel.infer(recipe, allow_lora=True),
+        "base_model": basemodel.infer(recipe, allow_lora=True,
+                                      filename=entry.get("name") or ""),
         "detected": entry.get("base_auto") or "",
         "base_source": entry.get("base_source") or "auto",
         "families": basemodel.families(),

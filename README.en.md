@@ -53,7 +53,9 @@ Keys: `/` focuses search, `Esc` closes the enlarged image or the panel, arrow ke
 ## The panel
 
 - **Generation**: positive and negative prompt, each copyable.
-- **Base model**: the inferred family (Krea2, Qwen Image, Flux, Wan, Hunyuan, LTX, MiniMax, Illustrious, NoobAI, Animagine, **Anima**, Pony, SDXL, SD3, SD 1.5 / 2.1, NovelAI as `NAI`), with a note when it was inferred from a LoRA rather than the checkpoint.
+- **Base model**: the inferred family (Krea2, **MOSS-Image**, Qwen Image, Flux, Wan, Hunyuan, LTX, MiniMax, Illustrious, NoobAI, Animagine, **Anima**, Pony, SDXL, SD3, SD 1.5 / 2.1, NovelAI as `NAI`).
+
+Detection order: model file name → LoRA path → **image file name**. Some exporters (certain Image Saver setups) record no model at all and leave it in the file name (e.g. `Moss25-865045361575048_00001_.png`); that fallback is used and the panel says "inferred from the file name". Anything still unrecognised shows `UNK` and can be set by hand., with a note when it was inferred from a LoRA rather than the checkpoint.
 - **Model**: checkpoint / UNET, VAE, CLIP with its type and clip skip.
 - **LoRA**: name, weight and whether it was enabled; disabled rows are dimmed and marked off.
 - **Sampler**: one card per sampling node with steps, CFG, sampler, scheduler, seed, denoise and step range. Multiple passes, or a high-noise / low-noise split, are listed separately.

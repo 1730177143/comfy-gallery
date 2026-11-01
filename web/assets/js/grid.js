@@ -12,7 +12,7 @@ import { thumbUrl } from "./api.js";
 const SOURCE_LABEL = { a1111: "A1111", comfy: "ComfyUI", novelai: "NovelAI", "comfy-ui": "UI", video: "Video", none: "—" };
 
 const BASE_LABEL = {
-  novelai: "NAI", krea2: "KR2", flux: "FLUX", sdxl: "XL", illustrious: "IL", noobai: "NOOB",
+  novelai: "NAI", moss: "MOSS", krea2: "KR2", flux: "FLUX", sdxl: "XL", illustrious: "IL", noobai: "NOOB",
   animagine: "ANG", pony: "PONY", qwen: "QWEN", wan: "WAN", hunyuan: "HY",
   ltx: "LTX", minimax: "MM", sd15: "SD15", sd3: "SD3", sd21: "SD21",
 };

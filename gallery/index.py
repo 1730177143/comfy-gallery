@@ -206,7 +206,7 @@ class GalleryIndex:
         name = scanned.rel.rsplit("/", 1)[-1]
         folder = scanned.rel.rsplit("/", 1)[0] if "/" in scanned.rel else ""
         source = recipe.get("source") or "none"
-        base_key = basemodel.key_of(recipe)
+        base_key = basemodel.key_of(recipe, name)
         return (
             entry_id,
             root.id,
@@ -319,10 +319,10 @@ class GalleryIndex:
                 recipe = None
         return {"entry": record, "recipe": recipe}
 
-    def store_recipe(self, entry_id: str, recipe: dict[str, Any]) -> None:
+    def store_recipe(self, entry_id: str, recipe: dict[str, Any], filename: str = "") -> None:
         with self._lock:
             connection = self.db()
-            base_key = basemodel.key_of(recipe)
+            base_key = basemodel.key_of(recipe, filename)
             connection.execute(
                 "UPDATE files SET recipe = ?, source = ?, base_auto = ?, "
                 "base_model = CASE WHEN base_source = 'manual' THEN base_model ELSE ? END, "

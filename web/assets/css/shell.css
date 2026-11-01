@@ -173,6 +173,7 @@
 /* Unknown is a neutral outline rather than a family colour. */
 [data-base="unknown"] { --badge-tone: #9aa0ac; }
 [data-base="novelai"] { --badge-tone: #7fb3ff; }
+[data-base="moss"] { --badge-tone: #4ec9a5; }
 /* ---------- main + toolbar ---------- */
 
 .main {

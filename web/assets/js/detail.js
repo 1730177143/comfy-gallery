@@ -163,6 +163,14 @@ function otherPanel(recipe) {
 }
 
 function baseModelRow(payload, handlers) {
+  // Say how a guess was reached: a LoRA path or the file name is evidence, not fact.
+  const withSource = (base) => {
+    const hint = base.source === "lora" ? t("base.fromLora")
+      : base.source === "filename" ? t("base.fromFilename")
+        : "";
+    return hint ? `${base.long} · ${hint}` : base.long;
+  };
+
   const families = payload.families || [];
   const current = payload.base_model;
   const manual = payload.base_source === "manual";
@@ -178,9 +186,7 @@ function baseModelRow(payload, handlers) {
       : el("span", { class: "base-badge", dataset: { base: "" }, text: t("base.unknown") }),
     el("span", {
       class: "base-long",
-      text: current
-        ? `${current.long}${current.source === "lora" ? ` · ${t("base.fromLora")}` : ""}`
-        : t("base.unknownHint"),
+      text: current ? withSource(current) : t("base.unknownHint"),
     }),
   );
 

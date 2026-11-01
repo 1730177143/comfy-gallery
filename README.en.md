@@ -66,7 +66,9 @@ Values come from resolving the graph's links, so numbers produced by Seed nodes,
 
 The footer offers copy prompt, **send to ComfyUI**, download, and move to trash.
 
-`Send to ComfyUI` loads the file's embedded workflow onto the canvas: it opens (or reuses) a canvas tab, and the small frontend extension shipped with this pack calls `app.loadGraphData()`. The button is disabled when the file has no workflow. It replaces whatever that tab currently shows (`Ctrl+Z` undoes it).
+`Send to ComfyUI` opens the file's embedded workflow as a **new workflow tab** in ComfyUI. The tab you are editing is left alone and nothing navigates or reloads: the gallery hands the workflow to the already-open ComfyUI page over a BroadcastChannel, and the frontend extension shipped with this pack calls `app.loadGraphData()` to open it in a fresh tab.
+
+Only when no ComfyUI page is open at all does one get opened. The button is disabled when the file has no workflow.
 
 ## Supported metadata
 

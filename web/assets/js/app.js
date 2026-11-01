@@ -212,7 +212,11 @@ async function sendWorkflow(id) {
       toast(t("toast.noWorkflow"));
       return;
     }
-    toast(sendWorkflowToCanvas(data.workflow) ? t("toast.sentWorkflow") : t("toast.failed"));
+    const result = await sendWorkflowToCanvas(data.workflow);
+    if (result === "sent") toast(t("toast.sentWorkflow"));
+    else if (result === "opened") toast(t("toast.openedComfyUI"));
+    else if (result === "no-workflow") toast(t("toast.noWorkflow"));
+    else toast(t("toast.failed"));
   } catch {
     toast(t("toast.noWorkflow"));
   }

@@ -66,7 +66,9 @@ mklink /J comfy-gallery D:\path\to\comfy-gallery
 
 底部动作：复制提示词、**发送到 ComfyUI**、下载原图、移到回收站。
 
-「发送到 ComfyUI」会把该文件内嵌的工作流加载到 ComfyUI 画布：新开（或复用）一个画布标签页，由本包随附的前端扩展 `app.loadGraphData()` 载入。文件里没有工作流时按钮为禁用状态。注意它会替换该标签页当前的图（可用 `Ctrl+Z` 撤销）。
+「发送到 ComfyUI」把该文件内嵌的工作流作为**一个新的工作流标签页**打开在 ComfyUI 里，当前正在编辑的标签页不受影响，页面也不会刷新或跳转——图库通过 BroadcastChannel 把工作流交给已打开的 ComfyUI 页面，由随附的前端扩展调用 `app.loadGraphData()` 新建标签页载入。
+
+如果此时没有任何 ComfyUI 页面打开，才会新开一个。文件里没有工作流时按钮为禁用状态。
 
 ## 支持的元数据来源
 

@@ -12,10 +12,12 @@ const TOOLTIP = "Launch Gallery (Shift+Click opens in new window)";
 const GALLERY_PATH = "/gallery";
 const NEW_WINDOW = "width=1440,height=960,resizable=yes,scrollbars=yes,status=yes";
 const BUTTON_GROUP_CLASS = "comfy-gallery-top-menu-group";
-// The gallery page hands a workflow over through localStorage; see
-// web/assets/js/send.js for the writing half.
+// The gallery page hands a workflow over on a BroadcastChannel, or through
+// localStorage when no canvas was open yet; see web/assets/js/send.js.
 const PENDING_KEY = "comfy-gallery:pending-workflow";
+const CHANNEL_NAME = "comfy-gallery";
 const PENDING_TTL = 60000;
+const INSTANCE = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 const MAX_ATTACH_ATTEMPTS = 120;
 
 const GALLERY_ICON = `
@@ -79,6 +81,28 @@ async function attachLegacyButton(attempt = 0) {
   settingsGroup.element.before(group.element);
 }
 
+/**
+ * Load a workflow into a NEW workflow tab.
+ *
+ * app.loadGraphData() already opens one and leaves the user's other tabs alone,
+ * which is the behaviour we want — no need to create a blank tab first.
+ */
+async function openInNewWorkflowTab(workflow) {
+  // The canvas may still be initialising when a fresh page opens.
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    if (typeof app.loadGraphData === "function" && app.graph) {
+      try {
+        await app.loadGraphData(workflow);
+      } catch (error) {
+        console.warn("comfy-gallery: could not load the sent workflow", error);
+      }
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+}
+
+/** Fallback path: a workflow left behind by a send made with no canvas open. */
 async function loadPendingWorkflow() {
   let raw = null;
   try {
@@ -101,19 +125,29 @@ async function loadPendingWorkflow() {
   }
   if (!payload || !payload.workflow) return;
   if (Date.now() - (payload.at || 0) > PENDING_TTL) return;   // stale send
+  await openInNewWorkflowTab(payload.workflow);
+}
 
-  // The canvas may still be initialising when a fresh tab opens.
-  for (let attempt = 0; attempt < 40; attempt += 1) {
-    if (typeof app.loadGraphData === "function" && app.graph) {
-      try {
-        await app.loadGraphData(payload.workflow);
-      } catch (error) {
-        console.warn("comfy-gallery: could not load the sent workflow", error);
-      }
+/** Answer the gallery's ping and receive workflows without any navigation. */
+function listenForWorkflows() {
+  let channel = null;
+  try {
+    channel = new BroadcastChannel(CHANNEL_NAME);
+  } catch {
+    return;
+  }
+  channel.addEventListener("message", (event) => {
+    const data = event.data || {};
+    if (data.type === "comfy-gallery:who") {
+      channel.postMessage({ type: "comfy-gallery:alive", id: INSTANCE });
       return;
     }
-    await new Promise((resolve) => setTimeout(resolve, 250));
-  }
+    if (data.type === "comfy-gallery:open" && data.workflow) {
+      // The gallery addresses one canvas, so several open tabs cannot all load it.
+      if (data.target && data.target !== INSTANCE) return;
+      openInNewWorkflowTab(data.workflow);
+    }
+  });
 }
 
 app.registerExtension({
@@ -126,10 +160,8 @@ app.registerExtension({
     },
   ],
   async setup() {
+    listenForWorkflows();
     loadPendingWorkflow();
-    window.addEventListener("storage", (event) => {
-      if (event.key === PENDING_KEY) loadPendingWorkflow();
-    });
 
     // The action bar mounts asynchronously; give Vue a few frames to render it
     // before deciding the API was not honoured.

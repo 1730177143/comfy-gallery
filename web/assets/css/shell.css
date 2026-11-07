@@ -492,3 +492,25 @@
   color: #fff;
   background: var(--danger);
 }
+
+/* ---------- collapsible folder tree ---------- */
+
+.nav-caret {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  color: var(--muted);
+  background: none;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: transform 120ms ease, color 120ms ease;
+}
+
+.nav-caret svg { width: 10px; height: 10px; }
+.nav-caret:hover { color: var(--text); background: var(--surface-3); }
+.nav-caret.is-open { transform: rotate(90deg); }
+.nav-caret.is-empty { cursor: default; background: none; }

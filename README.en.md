@@ -46,7 +46,8 @@ The first visit scans the whole output folder; a library of several thousand ima
 - **Multi-select**: the check button in the toolbar turns card clicks into selection; the strip above the grid offers `Select all`, batch `Favorite`, batch `Delete`, and `Esc` leaves the mode.
 - **Detail mode**: a three-way switch in the toolbar — `Side panel` (default), `Large view` (a modal with the image on the left and parameters on the right, arrow buttons to step through), and `Image only` (full-screen viewer, `←` / `→` to step, no panels).
 - **Settings**: default layout, items per row (0 = fit to width), extra folders, whether to include video, **wheel switching in the viewer**, click-outside-to-close, items per page, undo window, cache folder, **rescan / rebuild database**.
-- **Folder tree**: scrolls when long, with a sticky filter box once there are more than 12 folders.
+- **Folder tree**: a collapsible multi-level tree. A parent shows its own count plus the total below it, and parents that only hold subfolders appear too (they used to be invisible); clicking one lists everything underneath. Scrolls when long, with a sticky filter box past 12 entries.
+- **Scan status**: while a scan or rebuild runs, a pill with a spinner sits beside the count (`Scanning 525/5,155`) and disappears when it ends; `Rebuild database` in the settings also shows a progress bar with a percentage.
 - **Wheel switching** is off by default. When on, the wheel in the image viewer steps to the next image (down) or the previous one (up), one image per gesture; when off, the wheel scrolls as usual.
 
 Keys: `/` focuses search, `Esc` closes the enlarged image or the panel, arrow keys move through the grid.

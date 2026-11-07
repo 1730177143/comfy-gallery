@@ -182,6 +182,8 @@ class GalleryIndex:
     def _scan(self, force: bool = False) -> None:
         connection = self.db()
         started = time.time()
+        if not self._state.get("expected"):
+            self._state["expected"] = 0
         self._state.update(running=True, indexed=0, scanned=0, started_at=started,
                            finished_at=None, error=None)
 
@@ -239,7 +241,8 @@ class GalleryIndex:
 
         total = self._count_all()
         self._scanned_once = True
-        self._state.update(running=False, indexed=total, total=total, finished_at=time.time())
+        self._state.update(running=False, indexed=total, total=total, expected=0,
+                           finished_at=time.time())
 
     def _build_row(self, entry_id: str, root: config.Root, scanned: media.ScannedFile,
                    manual: dict[tuple[str, str], str] | None = None) -> tuple[Any, ...]:
@@ -444,6 +447,10 @@ class GalleryIndex:
         """
         with self._lock:
             connection = self.db()
+            # The old row count is the best estimate of how much work this is, and
+            # it is what the progress bar measures itself against.
+            expected = int(connection.execute("SELECT COUNT(*) AS n FROM files").fetchone()["n"])
+            self._state.update(expected=expected)
             connection.execute("DELETE FROM files")
             if not preserve_manual:
                 connection.execute("DELETE FROM manual_base")
@@ -538,6 +545,61 @@ class GalleryIndex:
             }
             for row in rows
         ]
+
+    def folder_tree(self) -> list[dict[str, Any]]:
+        """The folders as a real tree.
+
+        Files carry only their own folder, so a parent like ``Moss/`` exists on
+        disk but never as a row — the tree used to show just the indented
+        ``2026-11-02`` underneath it, which made newly created folders look
+        missing. Every ancestor is synthesised here, with its own count plus the
+        total of everything below it.
+        """
+        rows = self.folders()
+        roots = {root.id: root.label for root in config.roots()}
+        nodes: dict[tuple[str, str], dict[str, Any]] = {}
+        tops: list[dict[str, Any]] = []
+
+        for row in rows:
+            root_id = row["root_id"]
+            folder = row["folder"]
+            if not folder:
+                continue
+            count = row["count"]
+            parts = folder.split("/")
+            parent: dict[str, Any] | None = None
+            for depth in range(len(parts)):
+                path = "/".join(parts[:depth + 1])
+                node = nodes.get((root_id, path))
+                if node is None:
+                    node = {
+                        "root_id": root_id,
+                        "root_label": roots.get(root_id, root_id),
+                        "name": parts[depth],
+                        "folder": path,
+                        "count": 0,
+                        "total": 0,
+                        "children": [],
+                    }
+                    nodes[(root_id, path)] = node
+                    if parent is None:
+                        tops.append(node)
+                    else:
+                        parent["children"].append(node)
+                node["total"] += count
+                parent = node
+            if parent is not None:
+                parent["count"] += count
+
+        def sort_children(node: dict[str, Any]) -> None:
+            node["children"].sort(key=lambda item: item["name"].lower())
+            for child in node["children"]:
+                sort_children(child)
+
+        for node in tops:
+            sort_children(node)
+        tops.sort(key=lambda item: (item["root_label"], item["name"].lower()))
+        return tops
 
     def latest_mtime(self) -> float:
         """Newest file timestamp, so the page can notice a finished render."""

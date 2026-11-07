@@ -43,6 +43,10 @@
         <span class="brand-mark" aria-hidden="true"></span>
         <h1>Gallery</h1>
         <span class="count" id="count-label">—</span>
+        <span class="scan-chip" id="scan-chip" hidden>
+          <span class="scan-spinner" aria-hidden="true"></span>
+          <span id="scan-chip-text">—</span>
+        </span>
       </div>
 
       <div class="tools">
@@ -206,6 +210,10 @@
     </div>
 
     <p class="setting-help" data-i18n="settings.rebuildHelp"></p>
+    <div class="rebuild-progress" id="rebuild-progress" hidden>
+      <div class="rebuild-bar"><i id="rebuild-bar-fill"></i></div>
+      <span id="rebuild-percent">0%</span>
+    </div>
 
     <footer class="dialog-foot">
       <button id="rescan-btn" class="btn" type="button" data-i18n="settings.rescan">Rescan</button>

@@ -82,12 +82,39 @@ function updateCount() {
 }
 
 function renderScanStatus() {
-  if (state.scan && state.scan.running && (state.scan.scanned || 0) > 0) {
-    setStatus(t("status.scanning", {
-      done: formatNumber(state.scan.indexed || 0),
-      total: formatNumber(state.scan.scanned || 0),
-    }), true);
+  const scan = state.scan || {};
+  if (scan.running) {
+    const done = scan.scanned || 0;
+    const expected = scan.expected || 0;
+    // While rebuilding, the old row count is a good estimate of the total.
+    const text = expected
+      ? t("status.scanningOf", { done: formatNumber(done), total: formatNumber(expected) })
+      : t("status.scanningCount", { done: formatNumber(done) });
+    dom.scanChip.hidden = false;
+    dom.scanChipText.textContent = text;
+    dom.scanChip.dataset.busy = "true";
+    setStatus(text, true);
+    if (dom.rebuildProgress) {
+      if (scan.expected) {
+        const percent = Math.max(0, Math.min(100, Math.round((done / expected) * 100)));
+        dom.rebuildProgress.hidden = false;
+        dom.rebuildFill.style.width = `${percent}%`;
+        dom.rebuildPercent.textContent = `${percent}%`;
+      } else {
+        dom.rebuildProgress.hidden = false;
+        dom.rebuildFill.style.width = "100%";
+        dom.rebuildFill.dataset.indeterminate = "true";
+        dom.rebuildPercent.textContent = "…";
+      }
+    }
     return;
+  }
+
+  dom.scanChip.hidden = true;
+  dom.scanChip.dataset.busy = "false";
+  if (dom.rebuildProgress && !dom.rebuildProgress.hidden) {
+    dom.rebuildProgress.hidden = true;
+    dom.rebuildFill.dataset.indeterminate = "false";
   }
   if (state.loading) return;
   if (!state.exhausted && state.total > 0) setStatus(t("status.more"), false);
@@ -149,7 +176,11 @@ function loadMore() {
 async function loadSidebar() {
   try {
     const data = await api.fetchFolders();
-    state.sidebar = { folders: data.folders || [], bases: data.bases || [] };
+    state.sidebar = {
+      folders: data.folders || [],
+      tree: data.tree || [],
+      bases: data.bases || [],
+    };
     drawSidebar();
   } catch (error) {
     console.error("gallery: could not load folders", error);
@@ -159,6 +190,7 @@ async function loadSidebar() {
 function drawSidebar() {
   renderFolders(dom.folderNav, {
     folders: state.sidebar.folders,
+    tree: state.sidebar.tree,
     state,
     favoritesCount: state.favorites.length,
     onSelect: (patch) => {
@@ -363,6 +395,16 @@ function closeLightbox() {
 }
 
 /* ---------- polling ---------- */
+
+/** Poll quickly while a scan is running, slowly otherwise. */
+function schedulePoll() {
+  clearTimeout(pollTimer);
+  const delay = state.scan && state.scan.running ? 1200 : 5000;
+  pollTimer = setTimeout(async () => {
+    await poll();
+    schedulePoll();
+  }, delay);
+}
 
 async function poll() {
   try {
@@ -614,9 +656,9 @@ async function boot() {
   await loadSidebar();
   await loadPage(true);
 
-  pollTimer = setInterval(poll, 5000);
+  schedulePoll();
   window.addEventListener("beforeunload", () => {
-    clearInterval(pollTimer);
+    clearTimeout(pollTimer);
     clearInterval(pendingTicker);
   });
 }

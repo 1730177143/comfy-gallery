@@ -214,7 +214,8 @@ async def api_file(request: web.Request) -> web.StreamResponse:
 
 async def api_folders(_request: web.Request) -> web.StreamResponse:
     INDEX.ensure_started()
-    return _json({"folders": INDEX.folders(), "bases": INDEX.base_counts()})
+    return _json({"folders": INDEX.folders(), "tree": INDEX.folder_tree(),
+                  "bases": INDEX.base_counts()})
 
 
 async def api_workflow(request: web.Request) -> web.StreamResponse:

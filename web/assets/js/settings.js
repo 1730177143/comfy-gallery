@@ -22,6 +22,7 @@ export function createSettings({ dialog, button, layoutGroups, applyLayout, appl
     undoSeconds: dialog.querySelector("#undo-seconds"),
     dataDir: dialog.querySelector("#data-dir"),
     rescan: dialog.querySelector("#rescan-btn"),
+    rebuild: dialog.querySelector("#rebuild-btn"),
     groups: layoutGroups,
   };
 
@@ -171,6 +172,23 @@ export function createSettings({ dialog, button, layoutGroups, applyLayout, appl
         await onDataChanged();
       } catch {
         toast(t("toast.failed"));
+      }
+    });
+
+    // Drops the index and reads the whole library again. Unlike a rescan this
+    // also forgets files that are gone, which is what a big reshuffle in the
+    // output folder needs. Hand-pinned base models survive on the server.
+    refs.rebuild.addEventListener("click", async () => {
+      refs.rebuild.disabled = true;
+      try {
+        const response = await fetch("/gallery/api/rebuild", { method: "POST" });
+        if (!response.ok) throw new Error(String(response.status));
+        toast(t("toast.rebuilding"));
+        await onDataChanged();
+      } catch {
+        toast(t("toast.failed"));
+      } finally {
+        refs.rebuild.disabled = false;
       }
     });
   }

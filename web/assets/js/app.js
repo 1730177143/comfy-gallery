@@ -279,12 +279,16 @@ function stepSelection(delta) {
   if (next) selectItem(next);
 }
 
-async function changeBase(id, base) {
+/** Correct a base model. One wrong guess is normally shared by a whole batch, so
+    the correction is applied to every file made with the same main model. */
+async function changeBase(id, base, sync = true) {
   try {
-    await api.setBase(id, base);
+    const result = await api.setBase(id, base, sync && Boolean(base));
     await loadSidebar();
     await loadPage(true);
     await selectItem(id);
+    const affected = Number(result?.affected) || 0;
+    if (base && affected > 1) toast(t("toast.baseSynced", { n: affected }));
   } catch {
     toast(t("toast.failed"));
   }

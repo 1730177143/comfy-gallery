@@ -59,11 +59,17 @@ export function setFavorite(id, on) {
   );
 }
 
-export function setBase(id, base) {
+/** Pin a base model. `sync` applies it to every file of the same main model. */
+export function setBase(id, base, sync = false) {
+  const suffix = sync ? "&sync=1" : "";
   return requestJSON(
-    `${BASE}/base?id=${encodeURIComponent(id)}&base=${encodeURIComponent(base)}`,
+    `${BASE}/base?id=${encodeURIComponent(id)}&base=${encodeURIComponent(base)}${suffix}`,
     { method: "POST" },
   );
+}
+
+export function rebuildIndex() {
+  return requestJSON(`${BASE}/rebuild`, { method: "POST" });
 }
 
 export function deleteItems(ids) {

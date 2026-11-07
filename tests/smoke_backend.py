@@ -38,6 +38,21 @@ for index, path in enumerate(picked):
     shutil.copy2(path, target_dir / path.name)
     copied += 1
 
+# Two files made with the same checkpoint: the base-model sync test needs a pair
+# whose model name is recorded, which the real spread does not guarantee.
+from PIL import Image, PngImagePlugin  # noqa: E402
+
+for suffix in ("a", "b"):
+    info = PngImagePlugin.PngInfo()
+    info.add_text("parameters",
+                  "\n".join([
+                      "a portrait",
+                      "Negative prompt: blur",
+                      "Steps: 20, Sampler: Euler a, CFG scale: 7, Seed: 42, Size: 512x512, "
+                      "Model: sharedTestModel_v1, Model hash: deadbeef",
+                  ]))
+    Image.new("RGB", (64, 64), (40, 60, 90)).save(OUTPUT / f"shared-{suffix}.png", pnginfo=info)
+
 # Bare file with no metadata at all.
 bare = next(p for p in samples if p.name.startswith("pose_"))
 shutil.copy2(bare, OUTPUT / "no-metadata.png")
@@ -121,6 +136,59 @@ if thumb:
 
 check(config.resolve_entry("output:../etc/passwd") is None, "path traversal rejected")
 check(config.resolve_entry("bogus:whatever.png") is None, "unknown root rejected")
+
+# --- base-model corrections -------------------------------------------------
+# Files made with one model share a model_key, so one correction can fix a batch.
+with_model = [item for item in gallery.query(limit=200)["items"]
+              if item.get("model_key") == "sharedtestmodel_v1"]
+check(len(with_model) == 2, "files made with one model share a model_key", len(with_model))
+if with_model:
+    subject = with_model[0]
+    siblings = [item for item in gallery.query(limit=200)["items"]
+                if item.get("model_key") == "sharedtestmodel_v1"]
+    changed = gallery.set_base_model(subject["id"], "sdxl", sync_model=True)
+    check(changed == len(siblings), "sync corrected the whole model batch",
+          f"{changed} vs {len(siblings)}")
+    pinned = [item for item in gallery.query(limit=200)["items"]
+              if item.get("model_key") == "sharedtestmodel_v1"]
+    check(all(item["base_model"] == "sdxl" and item["base_source"] == "manual" for item in pinned),
+          "every sibling is pinned")
+
+    # A rescan must not undo the correction...
+    gallery._scan(force=True)
+    after_scan = gallery.item(subject["id"])["entry"]
+    check(after_scan["base_model"] == "sdxl" and after_scan["base_source"] == "manual",
+          "a rescan keeps the pinned base", after_scan["base_model"])
+
+    # ...and neither must a full rebuild, which throws every row away.
+    gallery.rebuild(preserve_manual=True)
+    after_rebuild = [item for item in gallery.query(limit=200)["items"]
+                     if item.get("model_key") == "sharedtestmodel_v1"]
+    check(after_rebuild and all(item["base_model"] == "sdxl" for item in after_rebuild),
+          "a rebuild keeps the pinned base", len(after_rebuild))
+
+    # Resetting one file clears its pin without touching the others.
+    gallery.set_base_model(subject["id"], "")
+    cleared = gallery.item(subject["id"])["entry"]
+    check(cleared["base_source"] == "auto", "reset restores the detected base")
+
+# --- indexing a single freshly saved file -----------------------------------
+fresh = OUTPUT / "brand-new.png"
+if not fresh.exists():
+    shutil.copy2(bare, fresh)
+indexed = gallery.index_files([fresh])
+check(indexed == 1, "a single new file can be indexed on its own", indexed)
+check(any(item["name"] == "brand-new.png" for item in gallery.query(limit=100)["items"]),
+      "the new file shows up without a full scan")
+
+# --- a missing root must not wipe the index --------------------------------
+before = gallery.query(limit=1)["total"]
+real_roots = config.roots()
+config.roots = lambda: [type(real_roots[0])("output", "output", OUTPUT / "does-not-exist")]
+gallery._scan(force=False)
+config.roots = lambda: real_roots
+check(gallery.query(limit=1)["total"] == before,
+      "an unreadable root does not delete rows", gallery.query(limit=1)["total"])
 
 # HTTP surface: registration must succeed against the stub server.
 from gallery import api  # noqa: E402

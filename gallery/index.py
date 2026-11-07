@@ -47,6 +47,8 @@ CREATE TABLE IF NOT EXISTS files (
     snippet     TEXT NOT NULL DEFAULT '',
     base_source TEXT NOT NULL DEFAULT 'auto',
     has_workflow INTEGER NOT NULL DEFAULT 0,
+    model_key TEXT NOT NULL DEFAULT '',
+
     version     INTEGER NOT NULL,
     search_text TEXT NOT NULL,
     recipe      TEXT
@@ -55,6 +57,17 @@ CREATE INDEX IF NOT EXISTS idx_files_mtime  ON files(mtime DESC);
 CREATE INDEX IF NOT EXISTS idx_files_folder ON files(folder);
 CREATE INDEX IF NOT EXISTS idx_files_root   ON files(root_id);
 CREATE INDEX IF NOT EXISTS idx_files_base   ON files(base_model);
+CREATE INDEX IF NOT EXISTS idx_files_model  ON files(model_key);
+
+-- A base model the user pinned by hand. Kept out of `files` so it survives a
+-- rescan, a full rebuild, and files being moved around inside a root.
+CREATE TABLE IF NOT EXISTS manual_base (
+    root_id    TEXT NOT NULL,
+    rel        TEXT NOT NULL,
+    base_model TEXT NOT NULL,
+    updated_at REAL NOT NULL,
+    PRIMARY KEY (root_id, rel)
+);
 """
 
 _BATCH_SIZE = 40
@@ -112,9 +125,25 @@ class GalleryIndex:
         if not columns:
             return
         required = {"id", "base_model", "base_auto", "base_source", "snippet", "has_workflow",
+                "model_key",
                 "recipe", "search_text"}
         if not required.issubset(columns):
             LOGGER.info("comfy-gallery index schema changed; rebuilding")
+            # Hand-pinned base models must outlive the table they were stored in,
+            # so they are moved into their own table first.
+            connection.execute(
+                "CREATE TABLE IF NOT EXISTS manual_base ("
+                " root_id TEXT NOT NULL, rel TEXT NOT NULL, base_model TEXT NOT NULL,"
+                " updated_at REAL NOT NULL, PRIMARY KEY (root_id, rel))")
+            if "base_source" in columns and "rel" in columns and "root_id" in columns:
+                try:
+                    connection.execute(
+                        "INSERT INTO manual_base (root_id, rel, base_model, updated_at) "
+                        "SELECT root_id, rel, base_model, 0 FROM files "
+                        "WHERE base_source = 'manual' AND base_model <> '' "
+                        "ON CONFLICT(root_id, rel) DO UPDATE SET base_model = excluded.base_model")
+                except sqlite3.Error:
+                    LOGGER.exception("comfy-gallery: could not rescue manual base models")
             connection.execute("DROP TABLE IF EXISTS files")
             connection.commit()
 
@@ -158,6 +187,7 @@ class GalleryIndex:
 
         include_video = bool(config.settings().get("include_video"))
         roots = config.roots()
+        manual = self._manual_map(connection)
         with self._lock:
             existing = {
                 row["id"]: (row["size"], row["mtime"], row["version"])
@@ -166,8 +196,22 @@ class GalleryIndex:
 
         seen: set[str] = set()
         batch: list[tuple[Any, ...]] = []
+        walked_all = True
         for root in roots:
-            for scanned in media.iter_media(root, include_video):
+            if not Path(root.path).is_dir():
+                LOGGER.warning("comfy-gallery: root is gone: %s", root.path)
+                walked_all = False
+                continue
+            try:
+                walked = list(media.iter_media(root, include_video))
+            except OSError:
+                # A root that cannot be read must not look like "every file was
+                # deleted", or a scan for one unplugged drive would wipe the rows
+                # (and with them the folder tree) of that whole root.
+                LOGGER.warning("comfy-gallery: could not walk %s", root.path)
+                walked_all = False
+                continue
+            for scanned in walked:
                 entry_id = config.make_entry_id(root.id, scanned.rel)
                 seen.add(entry_id)
                 self._state["scanned"] += 1
@@ -180,14 +224,14 @@ class GalleryIndex:
                     and previous[2] == config.INDEX_VERSION
                 ):
                     continue
-                batch.append(self._build_row(entry_id, root, scanned))
+                batch.append(self._build_row(entry_id, root, scanned, manual))
                 if len(batch) >= _BATCH_SIZE:
                     self._write(connection, batch)
                     batch = []
         if batch:
             self._write(connection, batch)
 
-        stale = [entry_id for entry_id in existing if entry_id not in seen]
+        stale = [entry_id for entry_id in existing if entry_id not in seen] if walked_all else []
         if stale:
             with self._lock:
                 connection.executemany("DELETE FROM files WHERE id = ?", [(item,) for item in stale])
@@ -197,7 +241,8 @@ class GalleryIndex:
         self._scanned_once = True
         self._state.update(running=False, indexed=total, total=total, finished_at=time.time())
 
-    def _build_row(self, entry_id: str, root: config.Root, scanned: media.ScannedFile) -> tuple[Any, ...]:
+    def _build_row(self, entry_id: str, root: config.Root, scanned: media.ScannedFile,
+                   manual: dict[tuple[str, str], str] | None = None) -> tuple[Any, ...]:
         payload: dict[str, Any] = {}
         if scanned.is_image:
             payload = metadata.read_payloads(scanned.path)
@@ -207,6 +252,9 @@ class GalleryIndex:
         folder = scanned.rel.rsplit("/", 1)[0] if "/" in scanned.rel else ""
         source = recipe.get("source") or "none"
         base_key = basemodel.key_of(recipe, name)
+        pinned = (manual or {}).get((root.id, scanned.rel), "")
+        base_model = pinned or base_key
+        base_source = "manual" if pinned else "auto"
         return (
             entry_id,
             root.id,
@@ -220,11 +268,12 @@ class GalleryIndex:
             int(dimensions[1] or 0),
             "image" if scanned.is_image else "video",
             source,
-            base_key,
+            base_model,
             base_key,
             basemodel.snippet_of(recipe),
-            "auto",
+            base_source,
             1 if payload.get("workflow") else 0,
+            model_key_of(recipe),
             config.INDEX_VERSION,
             build_search_blob(recipe, name, folder),
             json.dumps(recipe, ensure_ascii=False, separators=(",", ":")),
@@ -236,17 +285,17 @@ class GalleryIndex:
                 """
                 INSERT INTO files (id, root_id, rel, name, folder, ext, size, mtime, width, height,
                                    kind, source, base_model, base_auto, snippet, base_source,
-                                   has_workflow, version, search_text, recipe)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                   has_workflow, model_key, version, search_text, recipe)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                     root_id=excluded.root_id, rel=excluded.rel, name=excluded.name,
                     folder=excluded.folder, ext=excluded.ext, size=excluded.size,
                     mtime=excluded.mtime, width=excluded.width, height=excluded.height,
                     kind=excluded.kind, source=excluded.source,
                     base_auto=excluded.base_auto,
-                    base_model=CASE WHEN files.base_source = 'manual'
-                                    THEN files.base_model ELSE excluded.base_model END,
+                    base_model=excluded.base_model, base_source=excluded.base_source,
                     snippet=excluded.snippet, has_workflow=excluded.has_workflow,
+                    model_key=excluded.model_key,
                     version=excluded.version, search_text=excluded.search_text,
                     recipe=excluded.recipe
                 """,
@@ -297,7 +346,7 @@ class GalleryIndex:
             rows = connection.execute(
                 f"""
                 SELECT id, name, folder, width, height, size, mtime, source, kind, root_id,
-                       base_model, snippet, has_workflow
+                       base_model, base_source, snippet, has_workflow, model_key
                 FROM files {where} ORDER BY {order} LIMIT ? OFFSET ?
                 """,
                 [*params, max(1, min(200, limit)), max(0, offset)],
@@ -336,20 +385,123 @@ class GalleryIndex:
             )
             connection.commit()
 
-    def set_base_model(self, entry_id: str, base_key: str) -> bool:
-        """Pin a base model by hand; an empty key restores the detected one."""
+    def _manual_map(self, connection: sqlite3.Connection) -> dict[tuple[str, str], str]:
+        return {
+            (row["root_id"], row["rel"]): row["base_model"]
+            for row in connection.execute("SELECT root_id, rel, base_model FROM manual_base")
+        }
+
+    def set_base_model(self, entry_id: str, base_key: str, sync_model: bool = False) -> int:
+        """Pin a base model by hand; an empty key restores the detected one.
+
+        With ``sync_model`` the same family is applied to every file made with the
+        same main model — one wrong guess is usually shared by a whole batch, and
+        fixing them one by one is not reasonable. Returns how many rows changed.
+        """
         with self._lock:
             connection = self.db()
-            if base_key:
-                cursor = connection.execute(
-                    "UPDATE files SET base_model = ?, base_source = 'manual' WHERE id = ?",
-                    (base_key, entry_id))
-            else:
-                cursor = connection.execute(
+            row = connection.execute(
+                "SELECT id, root_id, rel, model_key FROM files WHERE id = ?", (entry_id,)
+            ).fetchone()
+            if row is None:
+                return 0
+
+            if not base_key:
+                connection.execute(
                     "UPDATE files SET base_model = base_auto, base_source = 'auto' WHERE id = ?",
                     (entry_id,))
+                connection.execute(
+                    "DELETE FROM manual_base WHERE root_id = ? AND rel = ?",
+                    (row["root_id"], row["rel"]))
+                connection.commit()
+                return 1
+
+            model_key = (row["model_key"] or "").strip()
+            if sync_model and model_key:
+                targets = connection.execute(
+                    "SELECT id, root_id, rel FROM files WHERE model_key = ?", (model_key,)
+                ).fetchall()
+            else:
+                targets = [row]
+
+            connection.executemany(
+                "UPDATE files SET base_model = ?, base_source = 'manual' WHERE id = ?",
+                [(base_key, item["id"]) for item in targets])
+            connection.executemany(
+                "INSERT INTO manual_base (root_id, rel, base_model, updated_at) VALUES (?, ?, ?, ?) "
+                "ON CONFLICT(root_id, rel) DO UPDATE SET "
+                "base_model = excluded.base_model, updated_at = excluded.updated_at",
+                [(item["root_id"], item["rel"], base_key, time.time()) for item in targets])
             connection.commit()
-        return cursor.rowcount > 0
+            return len(targets)
+
+    def rebuild(self, preserve_manual: bool = True) -> None:
+        """Throw the index away and read every file again.
+
+        Manual base-model corrections live in their own table, so they survive —
+        that is the point of the button: it re-reads the library after a big
+        reshuffle in ``output`` without losing the work done in the gallery.
+        """
+        with self._lock:
+            connection = self.db()
+            connection.execute("DELETE FROM files")
+            if not preserve_manual:
+                connection.execute("DELETE FROM manual_base")
+            connection.commit()
+        self._scan(force=True)
+
+    def rebuild_in_background(self, preserve_manual: bool = True) -> None:
+        if self._state.get("running"):
+            return
+        thread = threading.Thread(target=self._rebuild_safe, args=(preserve_manual,),
+                                  name="comfy-gallery-rebuild", daemon=True)
+        thread.start()
+
+    def _rebuild_safe(self, preserve_manual: bool = True) -> None:
+        try:
+            self.rebuild(preserve_manual=preserve_manual)
+        except Exception as error:
+            LOGGER.exception("comfy-gallery rebuild failed")
+            self._state.update(running=False, error=f"{type(error).__name__}: {error}",
+                               finished_at=time.time())
+
+    def index_files(self, paths: list[Path]) -> int:
+        """Index just these files, without walking the library.
+
+        Used when ComfyUI saves an image: the file is known by name, so there is
+        nothing to scan and a new render shows up immediately.
+        """
+        roots = config.roots()
+        if not roots or not paths:
+            return 0
+
+        connection = self.db()
+        manual = self._manual_map(connection)
+        rows: list[tuple[Any, ...]] = []
+        for path in paths:
+            try:
+                stat = path.stat()
+            except OSError:
+                continue
+            resolved = path.resolve()
+            for root in roots:
+                try:
+                    rel = resolved.relative_to(Path(root.path).resolve()).as_posix()
+                except (ValueError, OSError):
+                    continue
+                is_image, is_video = config.is_media(path.name)
+                scanned = media.ScannedFile(rel=rel, path=path, size=stat.st_size,
+                                            mtime=stat.st_mtime, is_image=is_image,
+                                            is_video=is_video)
+                rows.append(self._build_row(config.make_entry_id(root.id, rel), root,
+                                            scanned, manual))
+                break
+
+        if rows:
+            self._write(connection, rows)
+            total = self._count_all()
+            self._state.update(indexed=total, total=total)
+        return len(rows)
 
     def delete_entry(self, entry_id: str) -> bool:
         """Forget one file (used after it has been moved out of its root)."""
@@ -404,6 +556,21 @@ class GalleryIndex:
             by_source[row["source"]] = by_source.get(row["source"], 0) + int(row["count"])
             by_kind[row["kind"]] = by_kind.get(row["kind"], 0) + int(row["count"])
         return {"by_source": by_source, "by_kind": by_kind, "total": self._count_all()}
+
+
+def model_key_of(recipe: dict[str, Any]) -> str:
+    """Identify the main model so images of one model can be grouped.
+
+    Uses the checkpoint / UNET file name, which stays the same across every
+    render made with that model even when the prompt or LoRA stack changes.
+    """
+    models = recipe.get("models") or {}
+    for bucket in ("checkpoints", "unet"):
+        for item in models.get(bucket) or []:
+            name = str(item.get("path") or item.get("name") or "").strip()
+            if name:
+                return Path(name.replace("\\", "/")).stem.lower()
+    return ""
 
 
 def _video_recipe() -> dict[str, Any]:

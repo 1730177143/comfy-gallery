@@ -45,7 +45,8 @@ The first visit scans the whole output folder; a library of several thousand ima
 - **Cards**: base-model badge top-left, followed by a small workflow chip when the file carries one (click it to send that workflow to ComfyUI); favourite and delete top-right; the waterfall shows a two-line prompt preview, the grid shows the file name.
 - **Multi-select**: the check button in the toolbar turns card clicks into selection; the strip above the grid offers `Select all`, batch `Favorite`, batch `Delete`, and `Esc` leaves the mode.
 - **Detail mode**: a three-way switch in the toolbar — `Side panel` (default), `Large view` (a modal with the image on the left and parameters on the right, arrow buttons to step through), and `Image only` (full-screen viewer, `←` / `→` to step, no panels).
-- **Settings**: default layout, items per row (0 = fit to width), extra folders, whether to include video, **wheel switching in the viewer**, items per page, undo window, cache folder, rebuild index.
+- **Settings**: default layout, items per row (0 = fit to width), extra folders, whether to include video, **wheel switching in the viewer**, click-outside-to-close, items per page, undo window, cache folder, **rescan / rebuild database**.
+- **Folder tree**: scrolls when long, with a sticky filter box once there are more than 12 folders.
 - **Wheel switching** is off by default. When on, the wheel in the image viewer steps to the next image (down) or the previous one (up), one image per gesture; when off, the wheel scrolls as usual.
 
 Keys: `/` focuses search, `Esc` closes the enlarged image or the panel, arrow keys move through the grid.
@@ -65,6 +66,20 @@ Detection order: model file name → LoRA path → **image file name**. Some exp
 Values come from resolving the graph's links, so numbers produced by Seed nodes, math nodes or resolution selectors still show what actually ran. A base size derived from a resolution selector is marked with `≈`.
 
 The footer offers copy prompt, **send to ComfyUI**, download, and move to trash.
+
+### Keeping the index honest
+
+| Action | What it does |
+| --- | --- |
+| automatically | every image ComfyUI saves is indexed on the spot — no walk over `output` |
+| Rescan | adds new files and drops the ones that are gone |
+| Rebuild database | throws the index away and reads everything again — for after moving lots of files around |
+
+Hand-set base models live in their own table, so a rescan, a rebuild or a moved file never loses them. An unreadable root is skipped rather than treated as empty, so an unplugged drive cannot wipe its rows.
+
+### Correcting a base model
+
+The `Base model` picker in the detail panel corrects a wrong guess. The correction is **applied to every image made with the same main model** (grouped by checkpoint / UNET file name) and the toast says how many were changed; choosing `Unknown` restores the automatic answer.
 
 `Send to ComfyUI` opens the file's embedded workflow as a **new workflow tab** in ComfyUI. The tab you are editing is left alone and nothing navigates or reloads: the gallery hands the workflow to the already-open ComfyUI page over a BroadcastChannel, and the frontend extension shipped with this pack calls `app.loadGraphData()` to open it in a fresh tab.
 

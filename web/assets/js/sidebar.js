@@ -27,6 +27,10 @@ function navButton({ icon, label, count, active, indent, onClick }) {
  * ``state`` is read for the active highlight only; the caller owns it and reacts
  * to ``onSelect`` with the filter patch to apply.
  */
+// Kept outside the render so a sidebar refresh does not clear the filter.
+const FILTER_THRESHOLD = 12;
+let folderQuery = "";
+
 export function renderFolders(navEl, { folders, state, favoritesCount, onSelect }) {
   clear(navEl);
 
@@ -53,18 +57,54 @@ export function renderFolders(navEl, { folders, state, favoritesCount, onSelect 
   }
 
   const multipleRoots = new Set(nested.map((item) => item.root_id)).size > 1;
-  for (const entry of nested) {
-    const depth = entry.folder.split("/").length;
-    const label = entry.folder.split("/").pop();
-    navEl.append(navButton({
-      icon: "folder",
-      label: multipleRoots && depth === 1 ? `${label} · ${entry.root_label}` : label,
-      count: entry.count,
-      indent: depth,
-      active: !state.favOnly && state.folder === entry.folder && state.root === entry.root_id,
-      onClick: () => onSelect({ folder: entry.folder, root: entry.root_id, favOnly: false }),
-    }));
+  const list = el("div", { class: "nav-list" });
+
+  const draw = () => {
+    clear(list);
+    const needle = folderQuery.trim().toLowerCase();
+    const visible = needle
+      ? nested.filter((item) => item.folder.toLowerCase().includes(needle))
+      : nested;
+    if (!visible.length) {
+      list.append(el("p", { class: "root-empty", text: t("sidebar.noMatch") }));
+      return;
+    }
+    for (const entry of visible) {
+      const depth = entry.folder.split("/").length;
+      const label = entry.folder.split("/").pop();
+      list.append(navButton({
+        icon: "folder",
+        label: multipleRoots && depth === 1 ? `${label} · ${entry.root_label}` : label,
+        count: entry.count,
+        indent: depth,
+        active: !state.favOnly && state.folder === entry.folder && state.root === entry.root_id,
+        onClick: () => onSelect({ folder: entry.folder, root: entry.root_id, favOnly: false }),
+      }));
+    }
+  };
+
+  // A long folder tree is hard to scroll by eye, so it gets a filter box. Sticky,
+  // because the list itself scrolls.
+  if (nested.length > FILTER_THRESHOLD) {
+    const input = el("input", {
+      class: "nav-filter",
+      id: "folder-filter",
+      name: "folder-filter",
+      type: "search",
+      value: folderQuery,
+      placeholder: t("sidebar.filter"),
+      "aria-label": t("sidebar.filter"),
+      spellcheck: "false",
+    });
+    input.addEventListener("input", () => {
+      folderQuery = input.value;
+      draw();
+    });
+    navEl.append(input);
   }
+
+  draw();
+  navEl.append(list);
 }
 
 export function renderBases(listEl, { bases, selected, onSelect }) {

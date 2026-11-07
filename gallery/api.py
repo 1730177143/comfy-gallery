@@ -18,7 +18,7 @@ from urllib.parse import quote
 
 from aiohttp import web
 
-from . import basemodel, config, metadata, thumbs, trash
+from . import basemodel, config, metadata, thumbs, trash, watch
 from .pending import PendingQueue
 from .index import GalleryIndex
 from .parse import build_recipe
@@ -95,6 +95,8 @@ async def asset(request: web.Request) -> web.StreamResponse:
 
 async def api_state(_request: web.Request) -> web.StreamResponse:
     INDEX.ensure_started()
+    if not watch.installed():
+        watch.install(INDEX)   # retries if the server was not up at import time
     settings = config.settings()
     return _json({
         "scan": INDEX.state,
@@ -140,6 +142,17 @@ async def api_items(request: web.Request) -> web.StreamResponse:
     return _json({"scan": INDEX.state, "total": result["total"], "items": items})
 
 
+def _base_payload(entry: dict[str, Any], recipe: dict[str, Any]) -> dict[str, str] | None:
+    """What the detail panel should show: the pinned family, or the inference."""
+    pinned = (entry.get("base_model") or "").strip()
+    if entry.get("base_source") == "manual" and pinned:
+        return {"key": pinned,
+                "label": basemodel.SHORT_LABELS.get(pinned, pinned.upper()),
+                "long": basemodel.LONG_LABELS.get(pinned, pinned),
+                "source": "manual"}
+    return basemodel.infer(recipe, allow_lora=True, filename=entry.get("name") or "")
+
+
 async def api_item(request: web.Request) -> web.StreamResponse:
     record, error = _entry_or_error(request)
     if error is not None:
@@ -161,8 +174,7 @@ async def api_item(request: web.Request) -> web.StreamResponse:
     return _json({
         "entry": dict(entry),
         "recipe": recipe,
-        "base_model": basemodel.infer(recipe, allow_lora=True,
-                                      filename=entry.get("name") or ""),
+        "base_model": _base_payload(entry, recipe),
         "detected": entry.get("base_auto") or "",
         "base_source": entry.get("base_source") or "auto",
         "families": basemodel.families(),
@@ -388,23 +400,44 @@ async def api_pending_undo(request: web.Request) -> web.StreamResponse:
 
 
 async def api_base(request: web.Request) -> web.StreamResponse:
-    """Pin or reset the base model of one entry."""
+    """Pin or reset the base model of one entry.
+
+    ``sync=1`` applies the same family to every file made with the same main
+    model: one wrong guess is normally shared by a whole batch of renders.
+    """
     entry_id = request.query.get("id", "").strip()
     base_key = request.query.get("base", "").strip()
+    sync = request.query.get("sync", "") in ("1", "true", "yes")
     if INDEX.item(entry_id) is None:
         return _json({"error": "not_found"}, 404)
     known = {family["key"] for family in basemodel.families()}
     if base_key and base_key not in known:
         return _json({"error": "unknown_family"}, 400)
-    if not INDEX.set_base_model(entry_id, base_key):
+
+    affected = INDEX.set_base_model(entry_id, base_key, sync_model=sync)
+    if not affected:
         return _json({"error": "not_found"}, 404)
     record = INDEX.item(entry_id)
+    entry = record["entry"]
     return _json({
         "id": entry_id,
-        "base_model": basemodel.infer(record["recipe"] or {}, allow_lora=True) if base_key else None,
+        "affected": affected,
         "effective": base_key,
-        "detected": (record["entry"].get("base_auto") or ""),
+        "detected": (entry.get("base_auto") or ""),
+        "model_key": entry.get("model_key") or "",
     })
+
+
+async def api_rebuild(_request: web.Request) -> web.StreamResponse:
+    """Drop the index and read the whole library again.
+
+    Hand-pinned base models are kept: they live in their own table, so a rebuild
+    after moving files around does not throw away the corrections.
+    """
+    if INDEX.state.get("running"):
+        return _json({"error": "busy"}, 409)
+    INDEX.rebuild_in_background()
+    return _json({"scan": INDEX.state})
 
 
 async def api_settings(request: web.Request) -> web.StreamResponse:
@@ -500,6 +533,7 @@ def init() -> None:
     routes.get("/gallery/api/workflow")(api_workflow)
     routes.post("/gallery/api/export-workflow")(api_export_workflow)
     routes.post("/gallery/api/rescan")(api_rescan)
+    routes.post("/gallery/api/rebuild")(api_rebuild)
     routes.post("/gallery/api/favorite")(api_favorite)
     routes.post("/gallery/api/base")(api_base)
     routes.post("/gallery/api/delete")(api_delete)
@@ -512,4 +546,12 @@ def init() -> None:
 
     INDEX.ensure_started()
     PENDING.start()
+    # Index new renders the moment they are saved, instead of waiting for a walk
+    # over the whole output tree.
+    try:
+        if not watch.install(INDEX):
+            LOGGER.warning("comfy-gallery: save hook unavailable, falling back to scans")
+    except Exception:
+        LOGGER.exception("comfy-gallery: could not install the save hook")
+
     LOGGER.info("comfy-gallery served at /gallery")
